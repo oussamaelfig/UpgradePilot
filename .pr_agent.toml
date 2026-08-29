@@ -1,0 +1,29 @@
+# Qodo Merge configuration for UpgradePilot.
+# Repository-specific review behavior; see best_practices.md for the standards themselves.
+
+[pr_reviewer]
+extra_instructions = """
+Review against best_practices.md. Priorities for this repository, in order:
+1. Approval-boundary integrity: flag ANY code path where a GitHub mutation or other
+   irreversible action could occur without an explicit human approval decision, or where the
+   Mission Control approval state machine could be bypassed, re-decided, or raced.
+2. Trust boundaries: agent-reported payloads must be zod-validated at the server boundary;
+   flag unvalidated reads of request bodies or MCP tool arguments.
+3. Secret hygiene: flag anything that could leak API keys/tokens into the repo, logs, the
+   Daytona sandbox, UI, or PR text.
+4. Deterministic verification: flag any place where model output is treated as evidence of
+   migration success instead of executed command results.
+5. Test coverage: meaningful behavior changes require tests in the same PR; state-machine and
+   validation changes require regression tests.
+Do not request speculative abstractions, framework swaps, or scope expansion beyond the PR.
+"""
+
+[pr_code_suggestions]
+extra_instructions = """
+Suggestions must preserve the minimal-diff discipline of this repo. Prefer correctness,
+security, and testability fixes over stylistic rewrites. Do not suggest new dependencies
+unless they remove a correctness or security risk.
+"""
+
+[pr_description]
+generate_ai_title = false

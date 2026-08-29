@@ -1,0 +1,61 @@
+---
+description: Bright Data web-data pipeline configuration for UpgradePilot — how to fetch live migration docs, in what order, with what schema, and how to recover from page drift
+alwaysApply: true
+---
+
+# Bright Data pipeline (release documentation intelligence)
+
+All live web data in this project flows through the Bright Data Web MCP. Never hand-roll HTML
+parsers and never fetch docs with plain HTTP clients — pages behind bot protection will fail
+silently at demo time.
+
+## Access
+
+- Endpoint: `https://mcp.brightdata.com/mcp` (streamable HTTP MCP)
+- Auth: `Authorization: Bearer $BRIGHTDATA_API_TOKEN` (token lives in TrueForge connector
+  settings / local env — never in the repo)
+- Terminal check: `curl -s -X POST https://mcp.brightdata.com/mcp -H "Authorization: Bearer $BRIGHTDATA_API_TOKEN" -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"check","version":"1.0"}}}'`
+
+## Tool selection
+
+- Known URL → `scrape_as_markdown` (single) / `scrape_batch` (≤10 URLs)
+- Discovery → `search_engine` (single) / `search_engine_batch` (≤10 queries)
+
+## Source registry (single source of truth: `skills/release-intel/sources.yaml`)
+
+For the `openai-python 0.28 → 1.x` migration the registered sources, in priority order:
+
+1. `https://github.com/openai/openai-python/discussions/742` — official v1.0.0 Migration Guide
+2. `https://raw.githubusercontent.com/openai/openai-python/main/README.md` — current API surface
+3. `search_engine` query: `openai python v1 migration guide site:github.com` — recovery path
+
+## Allowed publishers (authenticity allowlist)
+
+Migration guidance may ONLY be extracted from URLs owned by the dependency's publisher. For
+openai-python that means URL prefixes:
+
+- `https://github.com/openai/`
+- `https://raw.githubusercontent.com/openai/`
+- `https://platform.openai.com/`
+
+Shared hosting domains (github.com, raw.githubusercontent.com) do not establish authenticity by
+themselves — the owner segment must match the allowlist. Recovery search results that do not
+match an allowed prefix are discarded, no matter their ranking.
+
+## Extraction contract
+
+Scraped markdown is extracted into JSON that MUST validate against
+`skills/release-intel/breaking_changes.schema.json` (each entry: `symbol`, `change_type`,
+`before`, `after`, `source_url`). Validation happens server-side in Mission Control; invalid
+extractions are rejected and must be re-extracted, not patched by hand.
+
+## Drift detection and self-repair (in order)
+
+1. Scrape primary source → extract → validate against schema.
+2. If the scrape fails, returns thin/empty content, or extraction fails validation → the page
+   has drifted: fall back to the next registered source and re-extract.
+3. If all registered URLs fail → `search_engine` with the registered recovery query, pick the
+   top result whose URL matches the publisher allowlist above (never merely the top result on a
+   shared hosting domain), scrape, re-extract.
+4. Always record which source ultimately fed the migration (`source_recovered` event to Mission
+   Control) so the UI shows data provenance.
