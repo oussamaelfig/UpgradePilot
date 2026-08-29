@@ -1,0 +1,16 @@
+# Deterministic legacy-pattern scan for the openai v1 migration.
+# Verification requires zero matches across *.py files in the target repo.
+scan:
+  include: "*.py"
+  exclude_dirs: [".venv", "venv"]
+  patterns:
+    - 'openai\.(ChatCompletion|Completion|Embedding|Moderation|error)\b'
+    - 'openai\.api_base'
+    - 'import openai\.error'
+    # Heuristics for legacy dict-style access on SDK response objects; see
+    # SKILL.md for how to handle demonstrable false positives.
+    - '\[.choices.\]\['
+    - '\[.data.\]\['
+    - '\[.results.\]\['
+  command: "grep -rEn 'openai\\.(ChatCompletion|Completion|Embedding|Moderation|error)\\b|openai\\.api_base|import openai\\.error|\\[.choices.\\]\\[|\\[.data.\\]\\[|\\[.results.\\]\\[' --include='*.py' --exclude-dir=.venv --exclude-dir=venv ."
+  success: "zero matches (grep exit code 1)"
