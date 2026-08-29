@@ -2,7 +2,7 @@ import type { Request, Response } from "express";
 import { Router, json } from "express";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { buildMcpServer } from "./mcp.js";
-import { MissionStore, MissionStoreError } from "./mission.js";
+import { MissionStore, MissionStoreError, missionStatus } from "./mission.js";
 import { ApprovalDecisionSchema } from "./schemas.js";
 
 /**
@@ -55,7 +55,8 @@ export function buildRouter(store: MissionStore, options: { mcpToken?: string } 
       res.status(404).json({ error: "no active mission" });
       return;
     }
-    res.json({ mission: store.snapshot(), last_seq: store.lastSeq() });
+    const mission = store.snapshot();
+    res.json({ mission, status: missionStatus(mission), last_seq: store.lastSeq() });
   });
 
   router.get("/api/stream", (req, res) => {
@@ -71,21 +72,11 @@ export function buildRouter(store: MissionStore, options: { mcpToken?: string } 
       res.write(`id: ${event.seq}\nevent: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`);
     };
 
-    // If the client's requested position falls outside the retained window —
-    // older than capped history, or newer than the store's own sequence (the
-    // store was reset or replaced) — say so explicitly instead of silently
-    // serving an incomplete suffix; clients should refetch the snapshot.
-    const oldest = store.oldestAvailableSeq();
-    const behindWindow = since > 0 && oldest !== null && since < oldest - 1;
-    const aheadOfStore = since > store.lastSeq();
-    if (behindWindow || aheadOfStore) {
-      res.write(
-        `event: replay_gap\ndata: ${JSON.stringify({
-          requested_since: since,
-          oldest_available: oldest,
-          last_seq: store.lastSeq(),
-        })}\n\n`,
-      );
+    // The gap decision itself is a store-level domain rule; the route only
+    // shapes the SSE frame.
+    const gap = store.replayGap(since);
+    if (gap) {
+      res.write(`event: replay_gap\ndata: ${JSON.stringify(gap)}\n\n`);
     }
 
     for (const event of store.eventsSince(since)) send(event);

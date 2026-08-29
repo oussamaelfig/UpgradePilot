@@ -2,7 +2,7 @@ import { mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { MissionStore, MissionStoreError } from "../src/mission.js";
+import { MissionStore, MissionStoreError, missionStatus } from "../src/mission.js";
 
 function startedStore() {
   const store = new MissionStore();
@@ -160,6 +160,31 @@ describe("event log", () => {
   });
 });
 
+describe("mission status precedence", () => {
+  it("resolves status in domain-precedence order", () => {
+    const { store, mission } = startedStore();
+    expect(missionStatus(store.snapshot()).label).toBe("RUNNING");
+
+    store.reportStage({ mission_id: mission.id, stage: "running_baseline", status: "failed" });
+    expect(missionStatus(store.snapshot()).label).toBe("ATTENTION");
+
+    const approval = store.requestApproval(approvalInput(mission.id));
+    expect(missionStatus(store.snapshot()).label).toBe("AWAITING APPROVAL");
+
+    store.decideApproval(approval.id, { decision: "rejected", decided_by: "x" });
+    expect(missionStatus(store.snapshot()).label).toBe("REJECTED");
+
+    const second = store.requestApproval(approvalInput(mission.id));
+    store.decideApproval(second.id, { decision: "approved", decided_by: "x" });
+    store.reportPrOpened({
+      mission_id: mission.id,
+      pr_url: "https://github.com/oussamaelfig/briefbot/pull/9",
+      branch: "upgrade/openai-v2",
+    });
+    expect(missionStatus(store.snapshot()).label).toBe("PR OPENED");
+  });
+});
+
 describe("persistence", () => {
   it("survives a restart via the state file", () => {
     const dir = mkdtempSync(join(tmpdir(), "mc-persist-"));
@@ -184,6 +209,29 @@ describe("persistence", () => {
     const store = new MissionStore(file);
     expect(store.hasActiveMission()).toBe(false);
     expect(() => store.activeMission()).toThrowError(/no active mission/);
+  });
+
+  it("treats structurally malformed mission entries as corruption, not data", () => {
+    // Regression test for a review finding: a parseable snapshot whose mission
+    // entries lack required arrays must go down the backup path rather than
+    // loading missions that break downstream reads like missionStatus().
+    const dir = mkdtempSync(join(tmpdir(), "mc-malformed-"));
+    const file = join(dir, "state.json");
+    writeFileSync(
+      file,
+      JSON.stringify({
+        seq: 3,
+        activeMissionId: "m1",
+        missions: [{ id: "m1", title: "no arrays here" }],
+        events: [],
+      }),
+    );
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const store = new MissionStore(file);
+    expect(store.hasActiveMission()).toBe(false);
+    expect(readdirSync(dir).filter((name) => name.includes(".corrupt-"))).toHaveLength(1);
+    errorSpy.mockRestore();
   });
 
   it("backs up a corrupt state file instead of silently discarding it", () => {
