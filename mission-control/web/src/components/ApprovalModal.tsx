@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Approval, Mission } from "../types";
 
 export function ApprovalModal({
@@ -12,6 +12,10 @@ export function ApprovalModal({
 }) {
   const [busy, setBusy] = useState<"approved" | "rejected" | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // A failure message belongs to one approval only; never carry it over when
+  // the modal re-renders for a different pending approval.
+  useEffect(() => setError(null), [approval.id]);
 
   const decide = async (decision: "approved" | "rejected") => {
     setBusy(decision);
