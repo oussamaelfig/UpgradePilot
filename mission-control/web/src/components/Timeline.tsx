@@ -9,6 +9,16 @@ function stageStates(mission: Mission): Record<Stage, StageState> {
   for (const record of mission.stages) {
     states[record.stage] = record.status === "active" ? "active" : record.status;
   }
+  // Event producers can advance to the next stage without emitting a second
+  // record that closes the previous active stage. Once a later stage has
+  // finished, an earlier stage cannot still be running in the UI.
+  const furthestFinished = mission.stages.reduce((furthest, record) => {
+    if (record.status === "active") return furthest;
+    return Math.max(furthest, STAGE_ORDER.indexOf(record.stage));
+  }, -1);
+  STAGE_ORDER.forEach((stage, index) => {
+    if (index < furthestFinished && states[stage] === "active") states[stage] = "done";
+  });
   return states;
 }
 
