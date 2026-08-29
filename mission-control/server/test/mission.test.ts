@@ -2,7 +2,7 @@ import { mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { MissionStore, MissionStoreError } from "../src/mission.js";
+import { MissionStore, MissionStoreError, missionStatus } from "../src/mission.js";
 
 function startedStore() {
   const store = new MissionStore();
@@ -157,6 +157,31 @@ describe("event log", () => {
     unsubscribe();
     store.reportEvent({ mission_id: mission.id, kind: "info", message: "ignored" });
     expect(seen).toEqual(["activity"]);
+  });
+});
+
+describe("mission status precedence", () => {
+  it("resolves status in domain-precedence order", () => {
+    const { store, mission } = startedStore();
+    expect(missionStatus(store.snapshot()).label).toBe("RUNNING");
+
+    store.reportStage({ mission_id: mission.id, stage: "running_baseline", status: "failed" });
+    expect(missionStatus(store.snapshot()).label).toBe("ATTENTION");
+
+    const approval = store.requestApproval(approvalInput(mission.id));
+    expect(missionStatus(store.snapshot()).label).toBe("AWAITING APPROVAL");
+
+    store.decideApproval(approval.id, { decision: "rejected", decided_by: "x" });
+    expect(missionStatus(store.snapshot()).label).toBe("REJECTED");
+
+    const second = store.requestApproval(approvalInput(mission.id));
+    store.decideApproval(second.id, { decision: "approved", decided_by: "x" });
+    store.reportPrOpened({
+      mission_id: mission.id,
+      pr_url: "https://github.com/oussamaelfig/briefbot/pull/9",
+      branch: "upgrade/openai-v2",
+    });
+    expect(missionStatus(store.snapshot()).label).toBe("PR OPENED");
   });
 });
 

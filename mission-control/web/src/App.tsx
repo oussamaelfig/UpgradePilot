@@ -39,15 +39,15 @@ function EmptyState({ connection }: { connection: string }) {
 }
 
 export default function App() {
-  const { mission, connection, decide } = useMission();
+  const { mission, status, connection, decide } = useMission();
 
-  if (!mission) return <EmptyState connection={connection} />;
+  if (!mission || !status) return <EmptyState connection={connection} />;
 
   const pendingApproval = mission.approvals.find((a) => a.status === "pending");
 
   return (
     <div className="mx-auto min-h-screen max-w-7xl px-4 py-5 lg:px-6">
-      <Header mission={mission} connection={connection} />
+      <Header mission={mission} status={status} connection={connection} />
       <main className="mt-5 grid gap-4 lg:grid-cols-[280px_1fr]">
         <div className="space-y-4">
           <Timeline mission={mission} />

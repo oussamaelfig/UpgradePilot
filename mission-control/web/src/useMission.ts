@@ -1,44 +1,35 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import type { Mission } from "./types";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createMissionClient, type MissionState } from "./missionClient";
 
 type ConnectionState = "connecting" | "live" | "reconnecting";
 
 /**
- * Mission state = always the server-truth snapshot. SSE events trigger a
- * debounced snapshot refetch; the stream itself is only a change signal, so
- * replay/reconnect correctness is trivial.
+ * React adapter over the mission client: SSE events act purely as change
+ * signals that trigger a debounced snapshot refresh, so replay, reconnects,
+ * and replay-gap signals are all handled by the same code path.
  */
 export function useMission() {
-  const [mission, setMission] = useState<Mission | null>(null);
+  const [state, setState] = useState<MissionState>(null);
   const [connection, setConnection] = useState<ConnectionState>("connecting");
   const refetchTimer = useRef<number | null>(null);
 
-  const refetch = useCallback(async () => {
-    try {
-      const response = await fetch("/api/mission");
-      if (response.status === 404) {
-        setMission(null);
-        return;
-      }
-      const body = await response.json();
-      setMission(body.mission);
-    } catch {
-      // transient; the next event or reconnect retries
-    }
-  }, []);
+  const client = useMemo(
+    () => createMissionClient({ fetchImpl: (input, init) => fetch(input, init), onState: setState }),
+    [],
+  );
 
-  const scheduleRefetch = useCallback(() => {
+  const scheduleRefresh = useCallback(() => {
     if (refetchTimer.current !== null) return;
     refetchTimer.current = window.setTimeout(() => {
       refetchTimer.current = null;
-      void refetch();
+      void client.refresh();
     }, 120);
-  }, [refetch]);
+  }, [client]);
 
   useEffect(() => {
-    void refetch();
+    void client.refresh();
     const source = new EventSource("/api/stream");
-    const onAnyEvent = () => scheduleRefetch();
+    const onAnyEvent = () => scheduleRefresh();
     // Named SSE events don't fire onmessage; listen to every type the server emits.
     for (const type of [
       "mission_started",
@@ -59,19 +50,12 @@ export function useMission() {
     source.onopen = () => setConnection("live");
     source.onerror = () => setConnection("reconnecting");
     return () => source.close();
-  }, [refetch, scheduleRefetch]);
+  }, [client, scheduleRefresh]);
 
   const decide = useCallback(
-    async (approvalId: string, decision: "approved" | "rejected") => {
-      await fetch(`/api/approvals/${approvalId}/decision`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ decision, decided_by: "human-operator" }),
-      });
-      await refetch();
-    },
-    [refetch],
+    (approvalId: string, decision: "approved" | "rejected") => client.decide(approvalId, decision),
+    [client],
   );
 
-  return { mission, connection, decide };
+  return { mission: state?.mission ?? null, status: state?.status ?? null, connection, decide };
 }

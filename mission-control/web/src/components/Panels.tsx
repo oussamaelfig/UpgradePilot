@@ -116,7 +116,15 @@ export function AffectedFilesPanel({ mission }: { mission: Mission }) {
   );
 }
 
-function TestRunCard({ run, kind }: { run: TestRun; kind: "baseline" | "verification" }) {
+function TestRunCard({
+  run,
+  kind,
+  packageName,
+}: {
+  run: TestRun;
+  kind: "baseline" | "verification";
+  packageName: string;
+}) {
   const failedTotal = run.failed + run.errors;
   const good = kind === "verification" && failedTotal === 0 && run.exit_code === 0;
   const accent = good ? "emerald" : failedTotal > 0 ? "red" : "zinc";
@@ -135,7 +143,7 @@ function TestRunCard({ run, kind }: { run: TestRun; kind: "baseline" | "verifica
           {kind === "baseline" ? "Before migration" : "After migration"}
         </span>
         <span className="rounded bg-zinc-800/80 px-1.5 py-0.5 font-mono text-[10px] text-zinc-400">
-          openai {run.installed_version}
+          {packageName} {run.installed_version}
         </span>
       </div>
       <div className="mb-2 flex items-end gap-4">
@@ -168,18 +176,21 @@ function TestRunCard({ run, kind }: { run: TestRun; kind: "baseline" | "verifica
 
 export function BeforeAfterPanel({ mission }: { mission: Mission }) {
   if (!mission.baseline && !mission.verification) return null;
+  // The dependency's bare name for evidence labels (mission.package may carry
+  // an ecosystem suffix like "openai (Python)").
+  const packageName = mission.package.split(" ")[0] ?? mission.package;
   return (
     <Panel title="Sandbox evidence — before / after">
       <div className="grid gap-3 lg:grid-cols-2">
         {mission.baseline ? (
-          <TestRunCard run={mission.baseline} kind="baseline" />
+          <TestRunCard run={mission.baseline} kind="baseline" packageName={packageName} />
         ) : (
           <div className="rounded-lg border border-dashed border-zinc-800 p-6 text-center text-[11px] text-zinc-600">
             baseline pending
           </div>
         )}
         {mission.verification ? (
-          <TestRunCard run={mission.verification} kind="verification" />
+          <TestRunCard run={mission.verification} kind="verification" packageName={packageName} />
         ) : (
           <div className="rounded-lg border border-dashed border-zinc-800 p-6 text-center text-[11px] text-zinc-600">
             verification pending

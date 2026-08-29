@@ -61,6 +61,11 @@ export type Approval = {
   decided_by?: string;
 };
 
+export type MissionStatus = {
+  label: "PR OPENED" | "AWAITING APPROVAL" | "REJECTED" | "ATTENTION" | "RUNNING";
+  kind: "success" | "waiting" | "danger" | "active";
+};
+
 export type Mission = {
   id: string;
   title: string;

@@ -71,6 +71,26 @@ export class MissionStoreError extends Error {
   }
 }
 
+export type MissionStatus =
+  | { label: "PR OPENED"; kind: "success" }
+  | { label: "AWAITING APPROVAL"; kind: "waiting" }
+  | { label: "REJECTED"; kind: "danger" }
+  | { label: "ATTENTION"; kind: "danger" }
+  | { label: "RUNNING"; kind: "active" };
+
+/**
+ * Domain status of a mission, in precedence order. Lives here (not in the
+ * dashboard) because it is a business decision over PR, approval, and stage
+ * state — the UI only renders it.
+ */
+export function missionStatus(mission: Mission): MissionStatus {
+  if (mission.pr) return { label: "PR OPENED", kind: "success" };
+  if (mission.approvals.some((a) => a.status === "pending")) return { label: "AWAITING APPROVAL", kind: "waiting" };
+  if (mission.approvals.some((a) => a.status === "rejected")) return { label: "REJECTED", kind: "danger" };
+  if (mission.stages.some((s) => s.status === "failed")) return { label: "ATTENTION", kind: "danger" };
+  return { label: "RUNNING", kind: "active" };
+}
+
 type Listener = (event: MissionEvent) => void;
 
 export class MissionStore {

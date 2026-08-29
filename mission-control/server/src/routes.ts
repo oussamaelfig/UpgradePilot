@@ -2,7 +2,7 @@ import type { Request, Response } from "express";
 import { Router, json } from "express";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { buildMcpServer } from "./mcp.js";
-import { MissionStore, MissionStoreError } from "./mission.js";
+import { MissionStore, MissionStoreError, missionStatus } from "./mission.js";
 import { ApprovalDecisionSchema } from "./schemas.js";
 
 /**
@@ -55,7 +55,8 @@ export function buildRouter(store: MissionStore, options: { mcpToken?: string } 
       res.status(404).json({ error: "no active mission" });
       return;
     }
-    res.json({ mission: store.snapshot(), last_seq: store.lastSeq() });
+    const mission = store.snapshot();
+    res.json({ mission, status: missionStatus(mission), last_seq: store.lastSeq() });
   });
 
   router.get("/api/stream", (req, res) => {
