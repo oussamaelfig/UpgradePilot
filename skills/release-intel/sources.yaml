@@ -1,0 +1,20 @@
+# Registry of documentation sources for release intelligence.
+# This file is the single source of truth referenced by .cursor/rules/brightdata-pipeline.mdc.
+packages:
+  - package: openai
+    ecosystem: python
+    migration: "0.28.x -> >=1.0 (v1 client interface; current major)"
+    allowed_publishers:
+      - "https://github.com/openai/"
+      - "https://raw.githubusercontent.com/openai/"
+      - "https://platform.openai.com/"
+    sources:
+      - priority: 1
+        url: "https://github.com/openai/openai-python/discussions/742"
+        title: "v1.0.0 Migration Guide (official)"
+        kind: migration_guide
+      - priority: 2
+        url: "https://raw.githubusercontent.com/openai/openai-python/main/README.md"
+        title: "openai-python README (current API surface)"
+        kind: api_reference
+    recovery_query: "openai python v1 migration guide site:github.com"

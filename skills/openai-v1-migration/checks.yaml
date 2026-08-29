@@ -1,0 +1,10 @@
+# Deterministic legacy-pattern scan for the openai v1 migration.
+# Verification requires zero matches across *.py files in the target repo.
+scan:
+  include: "*.py"
+  patterns:
+    - 'openai\.(ChatCompletion|Completion|Embedding|Moderation|error)\b'
+    - 'openai\.api_base'
+    - 'import openai\.error'
+  command: "grep -rEn 'openai\\.(ChatCompletion|Completion|Embedding|Moderation|error)\\b|openai\\.api_base|import openai\\.error' --include='*.py' ."
+  success: "zero matches (grep exit code 1)"

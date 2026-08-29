@@ -1,0 +1,41 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Breaking changes report",
+  "description": "Structure required by mission-control.report_breaking_changes. The server enforces an equivalent zod schema; this document is the agent-facing contract.",
+  "type": "object",
+  "required": ["mission_id", "source", "from_version", "to_version", "breaking_changes"],
+  "properties": {
+    "mission_id": { "type": "string", "minLength": 1 },
+    "source": {
+      "type": "object",
+      "required": ["url", "title", "retrieved_via"],
+      "properties": {
+        "url": { "type": "string", "format": "uri" },
+        "title": { "type": "string", "minLength": 1 },
+        "retrieved_via": { "type": "string", "minLength": 1 },
+        "recovered": { "type": "boolean" },
+        "recovery_note": { "type": "string" }
+      }
+    },
+    "from_version": { "type": "string", "minLength": 1 },
+    "to_version": { "type": "string", "minLength": 1 },
+    "breaking_changes": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 50,
+      "items": {
+        "type": "object",
+        "required": ["symbol", "change_type", "before", "after", "source_url"],
+        "properties": {
+          "symbol": { "type": "string", "minLength": 1 },
+          "change_type": {
+            "enum": ["removed", "renamed", "signature_changed", "config_changed", "behavior_changed"]
+          },
+          "before": { "type": "string", "minLength": 1 },
+          "after": { "type": "string", "minLength": 1 },
+          "source_url": { "type": "string", "format": "uri" }
+        }
+      }
+    }
+  }
+}
