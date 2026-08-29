@@ -1,4 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { describe, expect, it, vi } from "vitest";
 import { MissionStore, MissionStoreError } from "../src/mission.js";
 
 function startedStore() {
@@ -47,7 +50,7 @@ describe("approval state machine", () => {
     const approval = store.requestApproval(approvalInput(mission.id));
 
     const started = Date.now();
-    const pending = store.awaitApproval(approval.id, 30);
+    const pending = store.awaitApproval(mission.id, approval.id, 30);
     setTimeout(() => store.decideApproval(approval.id, { decision: "approved", decided_by: "x" }), 50);
     const result = await pending;
 
@@ -58,8 +61,20 @@ describe("approval state machine", () => {
   it("awaitApproval times out and reports pending", async () => {
     const { store, mission } = startedStore();
     const approval = store.requestApproval(approvalInput(mission.id));
-    const result = await store.awaitApproval(approval.id, 1);
+    const result = await store.awaitApproval(mission.id, approval.id, 1);
     expect(result.status).toBe("pending");
+  });
+
+  it("awaitApproval refuses an approval belonging to another mission", async () => {
+    // Regression test for a review finding: mission A must not be able to
+    // satisfy its gate with mission B's approval.
+    const store = new MissionStore();
+    const missionA = store.startMission({ repo: "o/a", package: "openai" });
+    const missionB = store.startMission({ repo: "o/b", package: "openai" });
+    const approvalB = store.requestApproval(approvalInput(missionB.id));
+    store.decideApproval(approvalB.id, { decision: "approved", decided_by: "x" });
+
+    await expect(store.awaitApproval(missionA.id, approvalB.id, 1)).rejects.toThrowError(/belongs to mission/);
   });
 
   it("a rejected approval never allows the PR to be recorded", () => {
@@ -81,12 +96,44 @@ describe("mutation-before-approval guard", () => {
     ).toThrowError(MissionStoreError);
   });
 
-  it("records the PR once an approval is approved", () => {
+  it("records the PR once an approval is approved and the action matches", () => {
     const { store, mission } = startedStore();
     const approval = store.requestApproval(approvalInput(mission.id));
     store.decideApproval(approval.id, { decision: "approved", decided_by: "x" });
-    store.reportPrOpened({ mission_id: mission.id, pr_url: "https://github.com/x/y/pull/7", branch: "upgrade/openai-v2" });
-    expect(store.snapshot().pr?.pr_url).toBe("https://github.com/x/y/pull/7");
+    store.reportPrOpened({
+      mission_id: mission.id,
+      pr_url: "https://github.com/oussamaelfig/briefbot/pull/7",
+      branch: "upgrade/openai-v2",
+    });
+    expect(store.snapshot().pr?.pr_url).toBe("https://github.com/oussamaelfig/briefbot/pull/7");
+  });
+
+  it("refuses to record a PR whose branch differs from the approved action", () => {
+    // Regression test for a review finding: approval of one PR must not make
+    // a different PR appear approved in the audit state.
+    const { store, mission } = startedStore();
+    const approval = store.requestApproval(approvalInput(mission.id));
+    store.decideApproval(approval.id, { decision: "approved", decided_by: "x" });
+    expect(() =>
+      store.reportPrOpened({
+        mission_id: mission.id,
+        pr_url: "https://github.com/oussamaelfig/briefbot/pull/8",
+        branch: "some-other-branch",
+      }),
+    ).toThrowError(/does not match any approved action/);
+  });
+
+  it("refuses to record a PR under a repository other than the approved one", () => {
+    const { store, mission } = startedStore();
+    const approval = store.requestApproval(approvalInput(mission.id));
+    store.decideApproval(approval.id, { decision: "approved", decided_by: "x" });
+    expect(() =>
+      store.reportPrOpened({
+        mission_id: mission.id,
+        pr_url: "https://github.com/attacker/elsewhere/pull/1",
+        branch: "upgrade/openai-v2",
+      }),
+    ).toThrowError(/does not match any approved action/);
   });
 });
 
@@ -110,5 +157,37 @@ describe("event log", () => {
     unsubscribe();
     store.reportEvent({ mission_id: mission.id, kind: "info", message: "ignored" });
     expect(seen).toEqual(["activity"]);
+  });
+});
+
+describe("persistence", () => {
+  it("survives a restart via the state file", () => {
+    const dir = mkdtempSync(join(tmpdir(), "mc-persist-"));
+    const file = join(dir, "state.json");
+    const store = new MissionStore(file);
+    const mission = store.startMission({ repo: "o/r", package: "openai" });
+    store.reportStage({ mission_id: mission.id, stage: "running_baseline", status: "active" });
+
+    const reloaded = new MissionStore(file);
+    expect(reloaded.activeMission().id).toBe(mission.id);
+    expect(reloaded.lastSeq()).toBe(store.lastSeq());
+  });
+
+  it("backs up a corrupt state file instead of silently discarding it", () => {
+    // Regression test for a review finding: read/parse failures must be
+    // reported and the unreadable snapshot preserved for inspection.
+    const dir = mkdtempSync(join(tmpdir(), "mc-corrupt-"));
+    const file = join(dir, "state.json");
+    writeFileSync(file, "{ this is not json");
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const store = new MissionStore(file);
+    expect(store.hasActiveMission()).toBe(false);
+    expect(errorSpy).toHaveBeenCalledOnce();
+
+    const backups = readdirSync(dir).filter((name) => name.includes(".corrupt-"));
+    expect(backups).toHaveLength(1);
+    expect(readFileSync(join(dir, backups[0]!), "utf-8")).toBe("{ this is not json");
+    errorSpy.mockRestore();
   });
 });

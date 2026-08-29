@@ -24,14 +24,30 @@ export function buildRouter(store: MissionStore, options: { mcpToken?: string } 
         return;
       }
     }
-    const server = buildMcpServer(store);
-    const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
-    res.on("close", () => {
-      void transport.close();
-      void server.close();
-    });
-    await server.connect(transport);
-    await transport.handleRequest(req, res, req.body);
+    // Express 4 does not surface rejected promises from async handlers; an
+    // uncaught transport failure would hang the request and crash the process
+    // on unhandled rejection instead of returning a controlled error.
+    try {
+      const server = buildMcpServer(store);
+      const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
+      res.on("close", () => {
+        void transport.close();
+        void server.close();
+      });
+      await server.connect(transport);
+      await transport.handleRequest(req, res, req.body);
+    } catch (error) {
+      console.error("mission-control: /mcp request failed:", error);
+      if (!res.headersSent) {
+        res.status(500).json({
+          jsonrpc: "2.0",
+          error: { code: -32603, message: "internal server error" },
+          id: null,
+        });
+      } else {
+        res.end();
+      }
+    }
   });
 
   router.get("/api/mission", (_req, res) => {
@@ -54,6 +70,16 @@ export function buildRouter(store: MissionStore, options: { mcpToken?: string } 
     const send = (event: { seq: number; type: string; data: unknown; ts: string }) => {
       res.write(`id: ${event.seq}\nevent: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`);
     };
+
+    // If the client's requested position predates the retained window (history
+    // is capped in persistence), say so explicitly instead of silently serving
+    // an incomplete suffix; clients should refetch the snapshot.
+    const oldest = store.oldestAvailableSeq();
+    if (since > 0 && oldest !== null && since < oldest - 1) {
+      res.write(
+        `event: replay_gap\ndata: ${JSON.stringify({ requested_since: since, oldest_available: oldest })}\n\n`,
+      );
+    }
 
     for (const event of store.eventsSince(since)) send(event);
     const unsubscribe = store.subscribe(send);
