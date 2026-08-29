@@ -4,13 +4,20 @@ import time
 
 import openai.error
 
+TRANSIENT_ERRORS = (
+    openai.error.RateLimitError,
+    openai.error.APIError,
+    openai.error.Timeout,
+    openai.error.APIConnectionError,
+)
+
 
 class UpstreamError(RuntimeError):
     """Raised when the OpenAI API keeps failing after all retries."""
 
 
 def call_with_retry(fn, *args, **kwargs):
-    """Call fn, retrying on rate limits and transient API errors.
+    """Call fn, retrying on rate limits and transient API/transport errors.
 
     Retries up to `retries` times (keyword-only, default 3) with a small
     linear backoff, then raises UpstreamError.
@@ -21,7 +28,7 @@ def call_with_retry(fn, *args, **kwargs):
     for attempt in range(retries):
         try:
             return fn(*args, **kwargs)
-        except (openai.error.RateLimitError, openai.error.APIError) as exc:
+        except TRANSIENT_ERRORS as exc:
             last_error = exc
             time.sleep(backoff_seconds * (attempt + 1))
     raise UpstreamError("OpenAI API failed after {} attempts: {}".format(retries, last_error))

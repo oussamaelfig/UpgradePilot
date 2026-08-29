@@ -15,7 +15,7 @@ def main(argv=None):
     with open(argv[0], "r", encoding="utf-8") as handle:
         notes = handle.read()
 
-    if not moderation.is_safe(notes):
+    if not reliability.call_with_retry(moderation.is_safe, notes):
         print("Notes were flagged by moderation; refusing to process.", file=sys.stderr)
         return 1
 
