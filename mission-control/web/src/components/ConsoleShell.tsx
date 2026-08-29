@@ -48,15 +48,30 @@ export function StatusPill({ status }: { status: MissionStatus }) {
 
 export function LiveIndicator({ connection, verbose = false }: { connection: string; verbose?: boolean }) {
   const live = connection === "live";
+  // First connection attempt is not a dropped stream: "reconnecting" is
+  // reserved for a stream that was live and went away.
+  const connecting = connection === "connecting";
   return (
     <span className="inline-flex items-center gap-2 text-xs text-console-muted">
       <span className="relative flex h-2 w-2" aria-hidden="true">
         {live && <span className="absolute inset-0 rounded-full bg-console-success/40 motion-safe:animate-ping" />}
         <span
-          className={`relative h-2 w-2 rounded-full ${live ? "bg-console-success" : "bg-console-warning"}`}
+          className={`relative h-2 w-2 rounded-full ${
+            live ? "bg-console-success" : connecting ? "bg-console-muted" : "bg-console-warning"
+          }`}
         />
       </span>
-      {live ? (verbose ? "Mission stream connected" : "Live") : verbose ? "Reconnecting to stream" : "Reconnecting"}
+      {live
+        ? verbose
+          ? "Mission stream connected"
+          : "Live"
+        : connecting
+          ? verbose
+            ? "Connecting to stream"
+            : "Connecting"
+          : verbose
+            ? "Reconnecting to stream"
+            : "Reconnecting"}
     </span>
   );
 }

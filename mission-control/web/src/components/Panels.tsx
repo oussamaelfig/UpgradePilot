@@ -404,10 +404,16 @@ const ACTIVITY_STYLES: Record<string, string> = {
   info: "text-console-faint",
 };
 
+const FEED_BADGE: Record<string, { className: string; dot: string; label: string }> = {
+  live: { className: "text-console-success", dot: "bg-console-success", label: "streaming" },
+  connecting: { className: "text-console-faint", dot: "bg-console-muted", label: "connecting" },
+  reconnecting: { className: "text-console-warning", dot: "bg-console-warning", label: "reconnecting" },
+};
+
 export function ActivityFeed({ mission, connection }: { mission: Mission; connection: string }) {
   if (mission.activity.length === 0) return null;
   const items = [...mission.activity].slice(-30).reverse();
-  const live = connection === "live";
+  const badge = FEED_BADGE[connection] ?? FEED_BADGE.reconnecting;
 
   return (
     <Panel
@@ -415,16 +421,9 @@ export function ActivityFeed({ mission, connection }: { mission: Mission; connec
       title="Agent activity"
       icon="activity"
       badge={
-        <span
-          className={`inline-flex items-center gap-1.5 font-mono text-[9px] uppercase ${
-            live ? "text-console-success" : "text-console-warning"
-          }`}
-        >
-          <span
-            className={`h-1.5 w-1.5 rounded-full ${live ? "bg-console-success" : "bg-console-warning"}`}
-            aria-hidden="true"
-          />
-          {live ? "streaming" : "reconnecting"}
+        <span className={`inline-flex items-center gap-1.5 font-mono text-[9px] uppercase ${badge.className}`}>
+          <span className={`h-1.5 w-1.5 rounded-full ${badge.dot}`} aria-hidden="true" />
+          {badge.label}
         </span>
       }
       bodyClassName="p-0"
