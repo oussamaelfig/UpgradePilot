@@ -51,13 +51,19 @@ must be public to clone.
    - `git clone https://github.com/<owner>/<repo>.git target && cd target`
    - `python3 -m venv .venv && .venv/bin/pip install -r requirements.txt`
 2. **Reproduce the upgrade failure** (`report_stage: running_baseline`)
-   - `.venv/bin/pip install --upgrade openai` — record the resolved version; it is the mission's
-     `to_version`.
+   - Install the requested target: when the mission specifies a version, install exactly that
+     (`.venv/bin/pip install "openai==<requested>"`); only when the mission says "latest"/"current"
+     (or gives no version) use `.venv/bin/pip install --upgrade openai`. Record the resolved
+     version with `pip show openai` — it is the mission's `to_version` and the pin you will write
+     to `requirements.txt`.
    - `.venv/bin/python -m pytest --continue-on-collection-errors` (add `-q` only if output is
      huge). Parse the exact counts from the summary line and capture a short raw excerpt.
    - `mission-control.report_baseline` with the real command, exit code, counts, resolved
-     version, and excerpt. If the baseline unexpectedly PASSES, stop and report — there is
-     nothing to migrate.
+     version, and excerpt.
+   - If the baseline unexpectedly PASSES, do not conclude anything yet: run the legacy-pattern
+     scan from step 4 first. Only when tests pass AND the scan finds zero legacy call sites may
+     you report that there is nothing to migrate; passing tests alone do not prove the affected
+     call sites are gone (coverage gaps). If the scan finds matches, proceed with the migration.
 3. **Migrate** (`report_stage: migrating_code`)
    - Apply the smallest set of edits that completes the migration, using the pattern map plus
      the breaking changes extracted from the live documentation. Update code, tests, and
@@ -67,9 +73,14 @@ must be public to clone.
 4. **Verify** (`report_stage: verifying_upgrade`)
    - `.venv/bin/python -m pytest` — must exit 0.
    - Legacy-pattern scan (deterministic, from `checks.yaml`):
-     `grep -rEn 'openai\.(ChatCompletion|Completion|Embedding|Moderation|error)\b|openai\.api_base|import openai\.error' --include='*.py' --exclude-dir=.venv --exclude-dir=venv .`
+     `grep -rEn 'openai\.(ChatCompletion|Completion|Embedding|Moderation|error)\b|openai\.api_base|import openai\.error|\[.choices.\]\[|\[.data.\]\[|\[.results.\]\[' --include='*.py' --exclude-dir=.venv --exclude-dir=venv .`
      The match count must be 0. `grep` exits 1 on zero matches — that is the success case.
      The venv exclusion is mandatory: without it the scan walks the installed SDK's own sources.
+     The last three patterns catch legacy dict-style access on response objects
+     (`resp["choices"][...]`, `resp["data"][...]`, `resp["results"][...]`), which typed v1
+     responses no longer support. They are heuristics: if a match is demonstrably not an SDK
+     response access (an unrelated dict that happens to use these keys), record that
+     justification in the migration plan notes instead of changing unrelated code.
    - `mission-control.report_verification` with real counts, the resolved version, and
      `legacy_patterns_remaining` from the scan.
    - If verification fails, iterate on the migration (back to step 3); never report numbers you

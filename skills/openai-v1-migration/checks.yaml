@@ -7,5 +7,10 @@ scan:
     - 'openai\.(ChatCompletion|Completion|Embedding|Moderation|error)\b'
     - 'openai\.api_base'
     - 'import openai\.error'
-  command: "grep -rEn 'openai\\.(ChatCompletion|Completion|Embedding|Moderation|error)\\b|openai\\.api_base|import openai\\.error' --include='*.py' --exclude-dir=.venv --exclude-dir=venv ."
+    # Heuristics for legacy dict-style access on SDK response objects; see
+    # SKILL.md for how to handle demonstrable false positives.
+    - '\[.choices.\]\['
+    - '\[.data.\]\['
+    - '\[.results.\]\['
+  command: "grep -rEn 'openai\\.(ChatCompletion|Completion|Embedding|Moderation|error)\\b|openai\\.api_base|import openai\\.error|\\[.choices.\\]\\[|\\[.data.\\]\\[|\\[.results.\\]\\[' --include='*.py' --exclude-dir=.venv --exclude-dir=venv ."
   success: "zero matches (grep exit code 1)"
