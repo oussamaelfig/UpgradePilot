@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Approval, Mission } from "../types";
 
 export function ApprovalModal({
@@ -12,10 +12,45 @@ export function ApprovalModal({
 }) {
   const [busy, setBusy] = useState<"approved" | "rejected" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   // A failure message belongs to one approval only; never carry it over when
   // the modal re-renders for a different pending approval.
   useEffect(() => setError(null), [approval.id]);
+
+  // The modal is the only interactive surface while a decision is pending:
+  // move focus into it (onto the panel, not a button — a stray Enter must not
+  // decide), keep Tab cycling inside, and hand focus back when it closes.
+  useEffect(() => {
+    const panel = panelRef.current;
+    if (!panel) return;
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    panel.focus();
+    const focusables = () =>
+      Array.from(
+        panel.querySelectorAll<HTMLElement>('button:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])'),
+      );
+    const onKeydown = (e: KeyboardEvent) => {
+      if (e.key !== "Tab") return;
+      const els = focusables();
+      if (els.length === 0) return;
+      const first = els[0];
+      const last = els[els.length - 1];
+      const active = document.activeElement;
+      if (e.shiftKey && (active === first || active === panel)) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", onKeydown);
+    return () => {
+      document.removeEventListener("keydown", onKeydown);
+      previouslyFocused?.focus?.();
+    };
+  }, [approval.id]);
 
   const decide = async (decision: "approved" | "rejected") => {
     setBusy(decision);
@@ -33,15 +68,22 @@ export function ApprovalModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4 backdrop-blur-sm">
-      <div className="panel-enter max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl bg-white p-6 shadow-2xl">
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="approval-modal-title"
+        tabIndex={-1}
+        className="panel-enter max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl bg-white p-6 shadow-2xl outline-none"
+      >
         <div className="mb-4 flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-warn/15">
-            <svg viewBox="0 0 16 16" className="h-5 w-5 fill-warn-deep">
+            <svg viewBox="0 0 16 16" className="h-5 w-5 fill-warn-deep" aria-hidden>
               <path d="M8 1.5a1.75 1.75 0 0 0-1.52.88L.7 12.55A1.75 1.75 0 0 0 2.22 15h11.56a1.75 1.75 0 0 0 1.52-2.45L9.52 2.38A1.75 1.75 0 0 0 8 1.5Zm.75 4.75a.75.75 0 0 0-1.5 0v3a.75.75 0 0 0 1.5 0v-3ZM8 12.75a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" />
             </svg>
           </div>
           <div>
-            <h2 className="text-md font-semibold tracking-tight text-ink">Human approval required</h2>
+            <h2 id="approval-modal-title" className="text-md font-semibold tracking-tight text-ink">Human approval required</h2>
             <p className="text-sm text-ink-secondary">
               The agent is paused. Nothing touches the real repository until you decide.
             </p>
@@ -102,7 +144,7 @@ export function ApprovalModal({
           </div>
         )}
 
-        <div className="flex gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row">
           <button
             onClick={() => void decide("approved")}
             disabled={busy !== null}

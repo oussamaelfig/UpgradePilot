@@ -6,7 +6,7 @@ const GITHUB_URL = "https://github.com/oussamaelfig/UpgradePilot";
 
 /* ---------- small hand-made icons (20x20, stroke currentColor) ---------- */
 
-function Icon({ d, filled = false }: { d: string; filled?: boolean }) {
+function Icon({ d }: { d: string }) {
   return (
     <svg
       width="20"
@@ -19,8 +19,8 @@ function Icon({ d, filled = false }: { d: string; filled?: boolean }) {
     >
       <path
         d={d}
-        stroke={filled ? "none" : "currentColor"}
-        fill={filled ? "currentColor" : "none"}
+        stroke="currentColor"
+        fill="none"
         strokeWidth="1.4"
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -55,7 +55,7 @@ function Nav() {
     <header
       className={`sticky inset-x-0 top-0 z-50 bg-surface transition-all ${scrolled ? "shadow" : ""}`}
     >
-      <nav className="flex items-center justify-between px-6 py-4 md:px-8 md:py-5" aria-label="Global">
+      <nav className="flex items-center justify-between px-4 py-4 md:px-8 md:py-5" aria-label="Global">
         <div className="flex lg:flex-1">
           <Link to="/" className="-m-1.5 p-1.5">
             <Wordmark size={26} />
@@ -71,11 +71,17 @@ function Nav() {
           <a className="hidden text-ink-secondary hover:text-ink sm:block" href="#evidence">
             Evidence
           </a>
-          <a className="text-ink-secondary hover:text-ink" href={GITHUB_URL} target="_blank" rel="noreferrer">
+          <a
+            className="hidden text-ink-secondary hover:text-ink sm:block"
+            href={GITHUB_URL}
+            target="_blank"
+            rel="noreferrer"
+          >
             GitHub
           </a>
           <Link to="/mission" className="btn btn-blue font-medium">
-            Open Mission Control
+            <span className="sm:hidden">Mission Control</span>
+            <span className="hidden sm:inline">Open Mission Control</span>
           </Link>
         </div>
       </nav>
@@ -129,8 +135,10 @@ function DashboardMock() {
       <div className="flex items-center gap-2 border-b border-line px-4 py-2">
         <LogoMark size={14} />
         <span className="text-[10px] font-semibold text-ink">UpgradePilot</span>
-        <span className="font-mono text-[9px] text-ink-tertiary">oussamaelfig/briefbot</span>
-        <span className="rounded-sm bg-ink/5 px-1.5 py-0.5 font-mono text-[8px] text-ink-secondary">
+        <span className="hidden font-mono text-[9px] text-ink-tertiary sm:inline">
+          oussamaelfig/briefbot
+        </span>
+        <span className="hidden rounded-sm bg-ink/5 px-1.5 py-0.5 font-mono text-[8px] text-ink-secondary min-[480px]:inline">
           openai <span className="text-bad-deep">0.28.1</span> → <span className="text-ok-deep">2.x</span>
         </span>
         <span className="ml-auto rounded-full bg-warn/15 px-2 py-0.5 text-[8px] font-semibold tracking-wide text-warn-deep">
@@ -339,7 +347,8 @@ const EVIDENCE_POINTS: { icon: keyof typeof ICONS; title: string; blurb: string 
   {
     icon: "shield",
     title: "Same tests, same sandbox",
-    blurb: "Verification reruns the exact suite in the exact environment — no moved goalposts.",
+    blurb:
+      "Verification reruns the repository's full test suite in the same sandbox — tests are migrated only where the new API demands it, never trimmed to pass.",
   },
   {
     icon: "scan",
@@ -372,7 +381,7 @@ export function Landing() {
               upgrade failure in a sandbox, migrates the code, proves it with tests — and only then
               asks a human to ship the pull request.
             </p>
-            <div className="mt-6 flex items-center justify-center gap-3">
+            <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
               <Link to="/mission" className="btn btn-blue btn-lg">
                 Open Mission Control
               </Link>
@@ -532,9 +541,18 @@ export function Landing() {
               The proof, not the promise
             </h2>
             <p className="mt-2 text-lg leading-8 text-white opacity-50 md:mt-4">
-              From the live demo mission — openai 0.28.1 → 2.x on a real repository. The same
-              suite that failed on the new SDK passes after migration, with zero legacy call
-              sites left behind.
+              From the recorded live demo mission — openai 0.28.1 → 2.x on a real repository.
+              The same suite that failed on the new SDK passes after migration, with zero legacy
+              call sites left behind. The full run output is public in the{" "}
+              <a
+                href="https://github.com/oussamaelfig/briefbot/pull/2"
+                target="_blank"
+                rel="noreferrer"
+                className="underline decoration-white/40 underline-offset-2 hover:decoration-white"
+              >
+                resulting pull request
+              </a>
+              .
             </p>
           </div>
           <div className="relative w-full px-4 md:px-24">

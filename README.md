@@ -32,7 +32,9 @@ Opens the PR                                 (GitHub MCP, approval-gated write t
 
 ## Repository layout
 
-- `mission-control/` — MCP server + live dashboard (timeline, evidence, approval screen)
+- `mission-control/` — MCP server + web UI. `/` serves the product landing page and
+  `/mission` the live Mission Control dashboard (timeline, evidence, approval screen);
+  the server rewrites every non-API path to the SPA, so both URLs deep-link directly
 - `skills/` — TrueForge skills: release intelligence (Bright Data pipeline) and migration playbooks
 - `agent/` — TrueForge agent instructions and setup
 - `demo-target/` — source of the demo fixture repository the agent migrates

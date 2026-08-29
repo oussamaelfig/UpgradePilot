@@ -164,6 +164,17 @@
   animation: marquee var(--marquee-duration, 60s) linear infinite;
 }
 
+/* Continuous animations stop for users who ask the OS for reduced motion;
+   the ticker content stays readable as static text. */
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track {
+    animation: none;
+  }
+  .stage-active-dot {
+    animation: none;
+  }
+}
+
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
