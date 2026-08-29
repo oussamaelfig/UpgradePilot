@@ -73,12 +73,19 @@ describe("history-API router", () => {
     render(<Link to="/mission">go</Link>);
     const anchor = container.querySelector("a")!;
     for (const modifier of ["metaKey", "ctrlKey", "shiftKey", "altKey"] as const) {
-      let event!: MouseEvent;
+      // Record whether the Link handler prevented default, then cancel at the
+      // document level so jsdom does not attempt an unimplemented navigation.
+      let linkPrevented: boolean | null = null;
+      const recordThenSuppress = (e: Event) => {
+        linkPrevented = e.defaultPrevented;
+        e.preventDefault();
+      };
+      document.addEventListener("click", recordThenSuppress);
       act(() => {
-        event = new MouseEvent("click", { bubbles: true, cancelable: true, [modifier]: true });
-        anchor.dispatchEvent(event);
+        anchor.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, [modifier]: true }));
       });
-      expect(event.defaultPrevented).toBe(false);
+      document.removeEventListener("click", recordThenSuppress);
+      expect(linkPrevented).toBe(false);
     }
     expect(window.location.pathname).toBe("/");
   });

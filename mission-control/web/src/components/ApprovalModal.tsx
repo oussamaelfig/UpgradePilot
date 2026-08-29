@@ -53,6 +53,8 @@ export function ApprovalModal({
       if (event.key !== "Tab") return;
       const elements = focusables();
       if (elements.length === 0) {
+        // Both actions are disabled while a decision is in flight. Parking
+        // focus on the neutral panel keeps Tab away from the page behind.
         event.preventDefault();
         panel.focus();
         return;

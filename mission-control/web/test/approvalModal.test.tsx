@@ -71,18 +71,35 @@ beforeEach(() => {
 
 afterEach(() => {
   act(() => root?.unmount());
+  root = undefined;
   container.remove();
   returnTarget.remove();
 });
 
-function renderModal(onDecide = vi.fn(async () => ({ ok: true as const }))) {
+function renderModal(
+  onDecide: Parameters<typeof ApprovalModal>[0]["onDecide"] = vi.fn(
+    async () => ({ ok: true as const }),
+  ),
+) {
   act(() => {
     root = createRoot(container);
-    root.render(
-      <ApprovalModal mission={mission} approval={approval} onDecide={onDecide} />,
-    );
+    root.render(<ApprovalModal mission={mission} approval={approval} onDecide={onDecide} />);
   });
   return onDecide;
+}
+
+function pressTab(shiftKey = false) {
+  let event!: KeyboardEvent;
+  act(() => {
+    event = new KeyboardEvent("keydown", {
+      key: "Tab",
+      shiftKey,
+      bubbles: true,
+      cancelable: true,
+    });
+    document.dispatchEvent(event);
+  });
+  return event;
 }
 
 describe("ApprovalModal safety", () => {
@@ -92,6 +109,7 @@ describe("ApprovalModal safety", () => {
 
     expect(dialog.getAttribute("aria-modal")).toBe("true");
     expect(dialog.getAttribute("aria-labelledby")).toBe("approval-modal-title");
+    expect(document.getElementById("approval-modal-title")?.textContent).toBe("Approve external action");
     expect(dialog.getAttribute("aria-describedby")).toContain("approval-modal-safety");
     expect(document.activeElement).toBe(dialog);
     expect(document.body.style.overflow).toBe("hidden");
@@ -101,7 +119,9 @@ describe("ApprovalModal safety", () => {
     const onDecide = renderModal();
 
     act(() => {
-      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }),
+      );
     });
 
     expect(container.querySelector('[role="dialog"]')).not.toBeNull();
@@ -109,28 +129,54 @@ describe("ApprovalModal safety", () => {
     expect(onDecide).not.toHaveBeenCalled();
   });
 
-  it("traps keyboard focus and submits only an explicit button decision", async () => {
-    const onDecide = renderModal();
+  it("wraps Tab and Shift+Tab inside the action controls", () => {
+    renderModal();
     const dialog = container.querySelector<HTMLElement>('[role="dialog"]')!;
     const buttons = Array.from(dialog.querySelectorAll<HTMLButtonElement>("button"));
     const reject = buttons.find((button) => button.textContent?.includes("Reject"))!;
     const approve = buttons.find((button) => button.textContent?.includes("Approve"))!;
 
     approve.focus();
-    act(() => {
-      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true }));
-    });
+    pressTab();
     expect(document.activeElement).toBe(reject);
+
+    dialog.focus();
+    pressTab(true);
+    expect(document.activeElement).toBe(approve);
+  });
+
+  it("parks focus on the panel while an asynchronous decision disables every action", async () => {
+    let resolveDecision!: (result: { ok: true }) => void;
+    renderModal(() => new Promise((resolve) => (resolveDecision = resolve)));
+    const dialog = container.querySelector<HTMLElement>('[role="dialog"]')!;
+    const approve = Array.from(dialog.querySelectorAll("button")).find((button) =>
+      button.textContent?.includes("Approve"),
+    )!;
+
+    await act(async () => {
+      approve.click();
+    });
+    expect(Array.from(dialog.querySelectorAll("button")).every((button) => button.disabled)).toBe(true);
+
+    const event = pressTab();
+    expect(event.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(dialog);
+
+    await act(async () => resolveDecision({ ok: true }));
+  });
+
+  it("submits only an explicit action and restores focus when unmounted", async () => {
+    const onDecide = renderModal();
+    const approve = Array.from(container.querySelectorAll("button")).find((button) =>
+      button.textContent?.includes("Approve"),
+    )!;
 
     await act(async () => {
       approve.click();
       await Promise.resolve();
     });
     expect(onDecide).toHaveBeenCalledWith("approval-1", "approved");
-  });
 
-  it("restores focus to the invoking control when the dialog unmounts", () => {
-    renderModal();
     act(() => root?.unmount());
     root = undefined;
     expect(document.activeElement).toBe(returnTarget);
