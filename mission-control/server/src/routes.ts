@@ -50,6 +50,21 @@ export function buildRouter(store: MissionStore, options: { mcpToken?: string } 
     }
   });
 
+  // Stateless transport: there is no server-initiated stream (GET) or session
+  // to tear down (DELETE). Streamable-HTTP clients still probe these methods
+  // per spec; without handlers Express falls through to a bare 404, which
+  // clients such as TrueForge log as remote transport errors. Answering 405
+  // with a JSON-RPC error tells them cleanly that only POST is supported.
+  const methodNotAllowed = (_req: Request, res: Response) => {
+    res.status(405).set("Allow", "POST").json({
+      jsonrpc: "2.0",
+      error: { code: -32000, message: "Method not allowed." },
+      id: null,
+    });
+  };
+  router.get("/mcp", methodNotAllowed);
+  router.delete("/mcp", methodNotAllowed);
+
   router.get("/api/mission", (_req, res) => {
     if (!store.hasActiveMission()) {
       res.status(404).json({ error: "no active mission" });
