@@ -55,6 +55,15 @@ source as drifted without fetching it (report the warning event, noting it is a 
 then execute the real recovery path — genuinely fetch the fallback source. Never simulate the
 recovery itself.
 
+## Delegation contract (when this procedure runs in a subagent)
+
+Dynamic subagents do not inherit skills or mission context. The delegating orchestrator MUST
+embed in the subagent brief: the active `mission_id` (subagents never call `start_mission`),
+the package being migrated, and the full registry entry for it — ordered source URLs, the
+`allowed_publishers` allowlist, and the `recovery_query` — copied verbatim from `sources.yaml`.
+A brief without the allowlist is invalid: the subagent would have no way to judge authenticity
+and must refuse to substitute sources from memory.
+
 ## Hard rules
 
 - All web access goes through Bright Data MCP tools; never fetch docs any other way.
