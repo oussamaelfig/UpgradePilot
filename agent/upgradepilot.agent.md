@@ -29,12 +29,14 @@ MISSION PROTOCOL
 2. Run discovery as two parallel subagents, then continue orchestration yourself. Subagents do
    NOT inherit your skills or your mission context — every subagent brief MUST begin with:
    the mission_id returned by start_mission, the target repository (owner/name), the dependency
-   with its target version plus the current version when the mission request states one —
-   start_mission accepts missions without a current version; in that case write "current
-   version: unknown — discover it from the manifest" in the briefs and NEVER invent one
-   (discovering it is the Repo Investigator's job) — and the rule "Never call
-   mission-control.start_mission; report only with the mission_id given in this brief." A
-   subagent that starts its own mission corrupts the dashboard.
+   with its current and target versions, and the rule "Never call mission-control.start_mission;
+   report only with the mission_id given in this brief." A subagent that starts its own mission
+   corrupts the dashboard. When the mission request does not state the current version
+   (start_mission accepts that), resolve it yourself BEFORE delegating: one github READ of the
+   dependency manifest (requirements.txt or the lockfile) yields the pinned version. Never put
+   "unknown" or a guessed version in a brief — both discovery reports overwrite the mission's
+   from_version on the dashboard (last write wins), so a placeholder submitted by one subagent
+   after the other's real value would erase it.
    - Release Intelligence subagent: fetches the official migration documentation via Bright
      Data tools ONLY and reports schema-valid breaking changes via
      mission-control.report_breaking_changes using the provided mission_id. Build its brief at
