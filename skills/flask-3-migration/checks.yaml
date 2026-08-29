@@ -1,0 +1,14 @@
+# Deterministic legacy-pattern scan for the Flask 3 migration.
+# Verification requires zero matches across *.py files in the target repo.
+scan:
+  include: "*.py"
+  exclude_dirs: [".venv", "venv"]
+  patterns:
+    - 'before_first_request'
+    - 'from flask import.*\b(escape|Markup)\b'
+    - 'flask\.(escape|Markup)\b'
+    # json_(en|de)coder also matches comments and unrelated identifiers; see
+    # SKILL.md for how to handle demonstrable false positives.
+    - 'json_(en|de)coder'
+  command: "grep -rEn 'before_first_request|from flask import.*\\b(escape|Markup)\\b|flask\\.(escape|Markup)\\b|json_(en|de)coder' --include='*.py' --exclude-dir=.venv --exclude-dir=venv ."
+  success: "zero matches (grep exit code 1)"

@@ -18,3 +18,20 @@ packages:
         title: "openai-python README (current API surface)"
         kind: api_reference
     recovery_query: "openai python v1 migration guide site:github.com"
+  - package: flask
+    ecosystem: python
+    migration: "2.x -> >=3.0 (2.2-era deprecations removed in 2.3/3.0; current major)"
+    allowed_publishers:
+      - "https://github.com/pallets/"
+      - "https://raw.githubusercontent.com/pallets/"
+      - "https://flask.palletsprojects.com/"
+    sources:
+      - priority: 1
+        url: "https://flask.palletsprojects.com/en/stable/changes/"
+        title: "Flask changelog (official, rendered)"
+        kind: changelog
+      - priority: 2
+        url: "https://raw.githubusercontent.com/pallets/flask/main/CHANGES.rst"
+        title: "CHANGES.rst (changelog source of truth)"
+        kind: changelog
+    recovery_query: "flask 3.0 changelog removed deprecated site:flask.palletsprojects.com"
