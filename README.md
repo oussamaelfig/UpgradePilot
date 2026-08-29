@@ -148,7 +148,7 @@ open agent/setup.md
 Tests:
 
 ```bash
-cd mission-control && npm test        # server (34) + web (4)
+cd mission-control && npm test        # server (36) + web (6)
 cd demo-target && pip install -r requirements.txt && python -m pytest   # fixture (13)
 ```
 
