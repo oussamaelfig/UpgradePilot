@@ -33,7 +33,13 @@ export function ApprovalModal({
     const onKeydown = (e: KeyboardEvent) => {
       if (e.key !== "Tab") return;
       const els = focusables();
-      if (els.length === 0) return;
+      if (els.length === 0) {
+        // Both action buttons are disabled while a decision is in flight;
+        // park focus on the panel so Tab cannot escape to the page behind.
+        e.preventDefault();
+        panel.focus();
+        return;
+      }
       const first = els[0];
       const last = els[els.length - 1];
       const active = document.activeElement;
