@@ -58,6 +58,35 @@ describe("mission snapshot endpoint", () => {
   });
 });
 
+describe("SSE replay gap", () => {
+  it("announces a replay gap when the requested seq predates retained history", async () => {
+    // Regression test for a review finding: a stale client must be told its
+    // replay is incomplete instead of silently receiving a partial suffix.
+    const store = new MissionStore();
+    const mission = store.startMission({ repo: "o/r", package: "openai" });
+    for (let i = 0; i < 3; i++) store.reportEvent({ mission_id: mission.id, kind: "info", message: `e${i}` });
+    // Simulate a retention cut: drop the oldest events as persistence capping would.
+    (store as unknown as { events: unknown[] }).events.splice(0, 2);
+
+    const server = app(store).listen(0);
+    const port = (server.address() as { port: number }).port;
+    try {
+      const controller = new AbortController();
+      const response = await fetch(`http://127.0.0.1:${port}/api/stream?since=1`, {
+        signal: controller.signal,
+      });
+      const reader = response.body!.getReader();
+      const { value } = await reader.read();
+      controller.abort();
+      const text = new TextDecoder().decode(value);
+      expect(text).toContain("event: replay_gap");
+      expect(text).toContain('"requested_since":1');
+    } finally {
+      server.close();
+    }
+  });
+});
+
 describe("MCP endpoint auth", () => {
   it("rejects unauthenticated MCP requests when a token is configured", async () => {
     const store = new MissionStore();

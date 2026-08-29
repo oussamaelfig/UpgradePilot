@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { z } from "zod";
 import {
@@ -64,6 +64,7 @@ export class MissionStoreError extends Error {
       | "unknown_approval"
       | "already_decided"
       | "approval_required"
+      | "approval_mismatch"
       | "no_active_mission",
   ) {
     super(message);
@@ -101,6 +102,11 @@ export class MissionStore {
 
   eventsSince(seq: number): MissionEvent[] {
     return this.events.filter((e) => e.seq > seq);
+  }
+
+  /** Oldest event sequence still available for replay (persistence caps history). */
+  oldestAvailableSeq(): number | null {
+    return this.events.length > 0 ? this.events[0]!.seq : null;
   }
 
   // ---------- mission lifecycle ----------
@@ -234,9 +240,19 @@ export class MissionStore {
     return approval;
   }
 
-  /** Long-poll an approval decision. Resolves early when the decision lands. */
-  async awaitApproval(approvalId: string, timeoutSeconds: number): Promise<Approval> {
+  /**
+   * Long-poll an approval decision. Resolves early when the decision lands.
+   * The approval must belong to the given mission — an agent must never be
+   * able to satisfy mission A's gate with mission B's approval.
+   */
+  async awaitApproval(missionId: string, approvalId: string, timeoutSeconds: number): Promise<Approval> {
     const approval = this.getApproval(approvalId);
+    if (approval.mission_id !== missionId) {
+      throw new MissionStoreError(
+        `approval '${approvalId}' belongs to mission '${approval.mission_id}', not '${missionId}'`,
+        "approval_mismatch",
+      );
+    }
     if (approval.status !== "pending") return approval;
     await new Promise<void>((resolve) => {
       const timer = setTimeout(() => {
@@ -255,16 +271,29 @@ export class MissionStore {
   }
 
   /**
-   * Recording an opened PR is only legal once a human approved the action.
-   * This is a deterministic guard against mutation-before-approval ordering bugs.
+   * Recording an opened PR is only legal once a human approved the action —
+   * and the recorded PR must be the one that was approved: same branch, and a
+   * URL under the approved repository. Approval for one PR must never make a
+   * different PR appear approved in the audit state.
    */
   reportPrOpened(input: z.infer<typeof ReportPrOpenedSchema>): void {
     const mission = this.getMission(input.mission_id);
-    const approved = mission.approvals.some((a) => a.status === "approved");
-    if (!approved) {
+    const approvedApprovals = mission.approvals.filter((a) => a.status === "approved");
+    if (approvedApprovals.length === 0) {
       throw new MissionStoreError(
         "refusing to record an opened PR: no approved approval exists for this mission",
         "approval_required",
+      );
+    }
+    const matching = approvedApprovals.find(
+      (a) =>
+        a.action.branch === input.branch &&
+        input.pr_url.startsWith(`https://github.com/${a.action.repo}/pull/`),
+    );
+    if (!matching) {
+      throw new MissionStoreError(
+        `refusing to record an opened PR: '${input.pr_url}' (branch '${input.branch}') does not match any approved action`,
+        "approval_mismatch",
       );
     }
     mission.pr = { pr_url: input.pr_url, branch: input.branch, ts: new Date().toISOString() };
@@ -290,18 +319,34 @@ export class MissionStore {
       events: this.events.slice(-2000),
     };
     mkdirSync(dirname(this.persistPath), { recursive: true });
-    writeFileSync(this.persistPath, JSON.stringify(state));
+    // Atomic write: a crash mid-write must never corrupt the live snapshot.
+    const tmpPath = `${this.persistPath}.tmp`;
+    writeFileSync(tmpPath, JSON.stringify(state));
+    renameSync(tmpPath, this.persistPath);
   }
 
   private load(path: string): void {
+    if (!existsSync(path)) return; // first boot
     try {
       const state = JSON.parse(readFileSync(path, "utf-8"));
       this.seq = state.seq ?? 0;
       this.activeMissionId = state.activeMissionId ?? null;
       this.events = state.events ?? [];
       for (const mission of state.missions ?? []) this.missions.set(mission.id, mission);
-    } catch {
-      // First boot or unreadable snapshot: start clean.
+    } catch (error) {
+      // Never silently discard state: preserve the unreadable snapshot for
+      // inspection and report the failure, then start clean.
+      const backupPath = `${path}.corrupt-${Date.now()}`;
+      try {
+        renameSync(path, backupPath);
+      } catch {
+        // If even the rename fails there is nothing more we can do safely.
+      }
+      console.error(
+        `mission-control: persisted state at ${path} was unreadable (${
+          error instanceof Error ? error.message : String(error)
+        }); backed up to ${backupPath} and starting clean`,
+      );
     }
   }
 }

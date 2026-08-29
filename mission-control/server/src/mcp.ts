@@ -182,7 +182,7 @@ export function buildMcpServer(store: MissionStore): McpServer {
     },
     guard(async (args) => {
       const input = AwaitApprovalSchema.parse(args);
-      const approval = await store.awaitApproval(input.approval_id, input.timeout_seconds);
+      const approval = await store.awaitApproval(input.mission_id, input.approval_id, input.timeout_seconds);
       return ok({
         approval_id: approval.id,
         status: approval.status,

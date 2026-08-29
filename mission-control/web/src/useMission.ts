@@ -52,6 +52,7 @@ export function useMission() {
       "approval_requested",
       "approval_decided",
       "pr_opened",
+      "replay_gap",
     ]) {
       source.addEventListener(type, onAnyEvent);
     }
