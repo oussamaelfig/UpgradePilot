@@ -35,8 +35,8 @@ describe("verificationClean — the single predicate behind 'verified' wording",
     expect(verificationClean({ ...cleanRun, legacy_patterns_remaining: 3 })).toBe(false);
   });
 
-  it("is true for a clean run with an absent legacy scan count", () => {
-    expect(verificationClean({ ...cleanRun, legacy_patterns_remaining: undefined })).toBe(true);
+  it("is false for a clean run whose legacy scan count is absent — missing evidence is not zero", () => {
+    expect(verificationClean({ ...cleanRun, legacy_patterns_remaining: undefined })).toBe(false);
   });
 
   it("is true for the fully clean case", () => {

@@ -279,13 +279,15 @@ function TestRunCard({
 }
 
 /** One success predicate for "verified" wording: clean exit, zero failures
- *  and errors, and no legacy call sites left by the scan. */
+ *  and errors, and an explicit legacy-scan result of zero remaining sites.
+ *  A missing scan count is not evidence — the verification gate is
+ *  `legacy_patterns_remaining == 0`, demonstrated, not assumed. */
 export function verificationClean(run: TestRun | undefined): boolean {
   return (
     !!run &&
     run.exit_code === 0 &&
     run.failed + run.errors === 0 &&
-    (run.legacy_patterns_remaining ?? 0) === 0
+    run.legacy_patterns_remaining === 0
   );
 }
 
