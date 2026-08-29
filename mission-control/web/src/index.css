@@ -1,19 +1,133 @@
 @import "tailwindcss";
 
+/*
+ * Design tokens extracted from the reference design system:
+ * light #fafafb canvas, #141420 ink with alpha-tinted secondary/tertiary text,
+ * #2f80ed accent blue, flat status palette, Inter variable type with tight
+ * tracking on headlines, 5/10/20px radii, subtle 10%-black shadows.
+ */
 @theme {
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
-  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --font-mono: Menlo, ui-monospace, SFMono-Regular, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
+
+  /* ink + surfaces */
+  --color-ink: #141420;
+  --color-ink-secondary: rgba(20, 20, 32, 0.6);
+  --color-ink-tertiary: rgba(20, 20, 32, 0.3);
+  --color-surface: #fafafb;
+  --color-line: #ececf1;
+
+  /* brand + status palette */
+  --color-accent: #2f80ed;
+  --color-ok: #8ac866;
+  --color-ok-deep: #4c8a28;
+  --color-warn: #f2994a;
+  --color-warn-deep: #c26a15;
+  --color-bad: #eb5757;
+  --color-bad-deep: #cc2e2e;
+  --color-note: #9b51e0;
+  --color-note-deep: #7433b8;
+  --color-gold: #f2c94c;
+
+  /* type scale (px values match the reference) */
+  --text-xxs: 9px;
+  --text-xxs--line-height: 16px;
+  --text-xs: 11px;
+  --text-xs--line-height: 20px;
+  --text-sm: 12px;
+  --text-sm--line-height: 20px;
+  --text-base: 13px;
+  --text-base--line-height: 20px;
+  --text-body: 14px;
+  --text-body--line-height: 20px;
+  --text-md: 16px;
+  --text-md--line-height: 20px;
+  --text-lg: 18px;
+  --text-lg--line-height: 21px;
+  --text-xl: 20px;
+  --text-xl--line-height: 24px;
+  --text-xxl: 32px;
+  --text-xxl--line-height: 40px;
+  --text-display: 64px;
+  --text-display--line-height: 64px;
+
+  /* radii */
+  --radius-sm: 3px;
+  --radius-md: 5px;
+  --radius-lg: 10px;
+  --radius-xl: 20px;
+
+  --tracking-tighter: -0.05em;
+  --tracking-tight: -0.025em;
+}
+
+/* Button system mirroring the reference: quiet white default, solid blue primary.
+   Lives in the components layer so Tailwind utilities can still override it. */
+@layer components {
+  .btn {
+    display: inline-block;
+    flex-shrink: 0;
+    padding: 5px 15px;
+    border-radius: 5px;
+    border: 1px solid #f3f4f6;
+    background-color: #fff;
+    color: var(--color-ink);
+    font-size: 13px;
+    line-height: 20px;
+    text-align: center;
+    white-space: nowrap;
+    cursor: pointer;
+    transition:
+      color 0.2s,
+      background-color 0.2s,
+      border 0.2s;
+  }
+  .btn:hover {
+    border-color: #e5e7eb;
+  }
+  .btn:disabled {
+    color: var(--color-ink-secondary);
+    cursor: not-allowed;
+    pointer-events: none;
+    background: #fafafa;
+  }
+  .btn-blue {
+    border-color: var(--color-accent);
+    background-color: var(--color-accent);
+    color: #fff;
+  }
+  .btn-blue:hover,
+  .btn-blue:focus {
+    border-color: #1d4ed8;
+    color: #fff;
+  }
+  .btn-blue:active {
+    background-color: #2563eb;
+  }
+  .btn-blue:disabled {
+    border-color: #d1d5db;
+    background-color: #d1d5db;
+    color: #fff;
+  }
+  .btn-lg {
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-size: 16px;
+    font-weight: 500;
+  }
 }
 
 @keyframes pulse-ring {
   0% {
-    box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.45);
+    box-shadow: 0 0 0 0 rgba(47, 128, 237, 0.35);
   }
   70% {
-    box-shadow: 0 0 0 8px rgba(56, 189, 248, 0);
+    box-shadow: 0 0 0 8px rgba(47, 128, 237, 0);
   }
   100% {
-    box-shadow: 0 0 0 0 rgba(56, 189, 248, 0);
+    box-shadow: 0 0 0 0 rgba(47, 128, 237, 0);
   }
 }
 
@@ -36,12 +150,26 @@
   animation: slide-in 0.35s ease-out;
 }
 
+/* Scrolling capability ticker on the landing page. */
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.marquee-track {
+  animation: marquee var(--marquee-duration, 60s) linear infinite;
+}
+
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgb(63 63 70);
+  background: #d9d9e0;
   border-radius: 4px;
 }
 ::-webkit-scrollbar-track {
