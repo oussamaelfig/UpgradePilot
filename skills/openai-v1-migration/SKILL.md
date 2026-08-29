@@ -36,6 +36,11 @@ Notes that matter in real repositories:
 - v1 clients retry rate limits and transient 5xx internally (default `max_retries=2`); keep the
   repository's own retry wrappers — they compose fine — but expect servers to see extra requests.
 - Response objects are typed models, not dicts; `.get(...)`/`[...]` access must be converted.
+- v1+ exception constructors are keyword-based and expect a transport request object
+  (`APITimeoutError(request=...)`, `APIConnectionError(message=..., request=...)`). When *tests*
+  must raise these directly, construct them with `request=None` — there is no construct-time
+  validation, and it avoids importing the SDK's HTTP library (which has changed names across
+  major versions; current releases depend on `httpx2`, older ones on `httpx`).
 
 ## Sandbox protocol (execute in order, report each phase)
 
@@ -62,8 +67,9 @@ must be public to clone.
 4. **Verify** (`report_stage: verifying_upgrade`)
    - `.venv/bin/python -m pytest` — must exit 0.
    - Legacy-pattern scan (deterministic, from `checks.yaml`):
-     `grep -rEn 'openai\.(ChatCompletion|Completion|Embedding|Moderation|error)\b|openai\.api_base|import openai\.error' --include='*.py' .`
+     `grep -rEn 'openai\.(ChatCompletion|Completion|Embedding|Moderation|error)\b|openai\.api_base|import openai\.error' --include='*.py' --exclude-dir=.venv --exclude-dir=venv .`
      The match count must be 0. `grep` exits 1 on zero matches — that is the success case.
+     The venv exclusion is mandatory: without it the scan walks the installed SDK's own sources.
    - `mission-control.report_verification` with real counts, the resolved version, and
      `legacy_patterns_remaining` from the scan.
    - If verification fails, iterate on the migration (back to step 3); never report numbers you

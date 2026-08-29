@@ -2,9 +2,10 @@
 # Verification requires zero matches across *.py files in the target repo.
 scan:
   include: "*.py"
+  exclude_dirs: [".venv", "venv"]
   patterns:
     - 'openai\.(ChatCompletion|Completion|Embedding|Moderation|error)\b'
     - 'openai\.api_base'
     - 'import openai\.error'
-  command: "grep -rEn 'openai\\.(ChatCompletion|Completion|Embedding|Moderation|error)\\b|openai\\.api_base|import openai\\.error' --include='*.py' ."
+  command: "grep -rEn 'openai\\.(ChatCompletion|Completion|Embedding|Moderation|error)\\b|openai\\.api_base|import openai\\.error' --include='*.py' --exclude-dir=.venv --exclude-dir=venv ."
   success: "zero matches (grep exit code 1)"
