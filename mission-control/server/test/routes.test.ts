@@ -85,6 +85,31 @@ describe("SSE replay gap", () => {
       server.close();
     }
   });
+
+  it("announces a replay gap when the requested seq is ahead of the store", async () => {
+    // Regression test for a review finding: after a store reset, a client
+    // holding a higher seq than the new store must be told to resync instead
+    // of receiving silence.
+    const store = new MissionStore();
+    store.startMission({ repo: "o/r", package: "openai" });
+
+    const server = app(store).listen(0);
+    const port = (server.address() as { port: number }).port;
+    try {
+      const controller = new AbortController();
+      const response = await fetch(`http://127.0.0.1:${port}/api/stream?since=999`, {
+        signal: controller.signal,
+      });
+      const reader = response.body!.getReader();
+      const { value } = await reader.read();
+      controller.abort();
+      const text = new TextDecoder().decode(value);
+      expect(text).toContain("event: replay_gap");
+      expect(text).toContain('"requested_since":999');
+    } finally {
+      server.close();
+    }
+  });
 });
 
 describe("MCP endpoint auth", () => {
