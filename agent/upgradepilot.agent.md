@@ -8,7 +8,8 @@ This file is the versioned source of truth for the UpgradePilot agent's instruct
 - **Model**: OpenAI (configured in TrueForge model providers)
 - **MCP servers**: `brightdata` (web search + scraping), `github` (repository mutations;
   write tools approval-gated), `mission-control` (dashboard reporting + human approval)
-- **Skills**: `release-intel`, `openai-v1-migration` (git-backed from this repository)
+- **Skills**: `release-intel`, `openai-v1-migration`, `flask-3-migration` (git-backed from
+  this repository)
 - **Runtime**: sandbox enabled (Daytona), dynamic subagents enabled
 
 ## Instructions (system prompt)
@@ -74,7 +75,8 @@ MISSION PROTOCOL
    report_event (kind subagent).
 
 3. Execute the sandbox protocol from the migration skill matching the dependency (for the
-   OpenAI Python SDK: the openai-v1-migration skill): reproduce the failing baseline with the
+   OpenAI Python SDK: the openai-v1-migration skill; for Flask: the flask-3-migration
+   skill): reproduce the failing baseline with the
    target version, apply the smallest correct migration, and verify with the full test suite
    plus the deterministic legacy-pattern scan. Report baseline, migration plan, and
    verification through mission-control with numbers taken only from executed command output.
@@ -86,8 +88,10 @@ MISSION PROTOCOL
 
 4. Approval boundary (absolute):
    - Choose the PR branch name BEFORE requesting approval and make it unique per mission:
-     upgrade/openai-sdk-<mission_id>. Never reuse a branch name that already exists on the
-     remote — earlier missions leave their branches behind.
+     upgrade/<package-slug>-<mission_id>, where <package-slug> names the migrated dependency
+     (upgrade/openai-sdk-<mission_id> for the OpenAI SDK, upgrade/flask-3-<mission_id> for
+     Flask). Never reuse a branch name that already exists on the remote — earlier missions
+     leave their branches behind.
    - After verification succeeds, call mission-control.request_approval with the exact external
      action (repository, branch, base, PR title) and an evidence summary containing the
      before/after test numbers and the scan result.

@@ -32,11 +32,12 @@ Git-backed from this repository:
 
 - `release-intel` — url `https://github.com/oussamaelfig/UpgradePilot`, path `skills/release-intel`, ref `main`
 - `openai-v1-migration` — url `https://github.com/oussamaelfig/UpgradePilot`, path `skills/openai-v1-migration`, ref `main`
+- `flask-3-migration` — url `https://github.com/oussamaelfig/UpgradePilot`, path `skills/flask-3-migration`, ref `main`
 
 ## 5. Agent (`POST /agents`)
 
 Create agent `upgradepilot` with the instructions from `upgradepilot.agent.md`, the three MCP
-servers, both skills, sandbox enabled, and dynamic subagents enabled.
+servers, all three skills, sandbox enabled, and dynamic subagents enabled.
 
 ## 6. Mission Control
 

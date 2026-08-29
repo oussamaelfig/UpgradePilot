@@ -17,6 +17,7 @@ the sandbox. Model reasoning is never evidence.
 | `from flask import escape` | `from markupsafe import escape` |
 | `from flask import Markup` | `from markupsafe import Markup` |
 | `app.json_encoder = CustomEncoder` | `app.json = CustomProvider(app)` where `CustomProvider` subclasses `flask.json.provider.DefaultJSONProvider` |
+| `from flask.json import JSONEncoder` / `flask.json.JSONEncoder` subclasses (same for `JSONDecoder`) | removed with the `json_encoder` attributes; port the subclass to a `DefaultJSONProvider` subclass |
 | `class CustomEncoder(json.JSONEncoder)` with `def default(self, o)` | provider `default` is a `@staticmethod`; delegate unknown types to `DefaultJSONProvider.default(o)` |
 | `werkzeug==2.x` companion pin in requirements | Flask 3 requires Werkzeug ≥3; bump the pin in the same edit |
 
@@ -81,7 +82,7 @@ must be public to clone.
 4. **Verify** (`report_stage: verifying_upgrade`)
    - `.venv/bin/python -m pytest` — must exit 0.
    - Legacy-pattern scan (deterministic, from `checks.yaml`):
-     `grep -rEn 'before_first_request|from flask import.*\b(escape|Markup)\b|flask\.(escape|Markup)\b|json_(en|de)coder' --include='*.py' --exclude-dir=.venv --exclude-dir=venv .`
+     `grep -rEn 'before_first_request|from flask import.*\b(escape|Markup)\b|flask\.(escape|Markup)\b|json_(en|de)coder|from flask\.json import.*\b(JSONEncoder|JSONDecoder)\b|flask\.json\.(JSONEncoder|JSONDecoder)\b' --include='*.py' --exclude-dir=.venv --exclude-dir=venv .`
      The match count must be 0. `grep` exits 1 on zero matches — that is the success case.
      The venv exclusion is mandatory: without it the scan walks the installed framework's own
      sources. The `before_first_request` and `json_(en|de)coder` patterns are plain substrings,
