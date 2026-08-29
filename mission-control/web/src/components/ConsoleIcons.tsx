@@ -11,7 +11,6 @@ export type ConsoleIconName =
   | "file"
   | "impact"
   | "info"
-  | "menu"
   | "overview"
   | "package"
   | "repository"
@@ -70,7 +69,6 @@ const paths: Record<ConsoleIconName, React.ReactNode> = {
       <path d="M10 9v5M10 6.5h.01" />
     </>
   ),
-  menu: <path d="M3 5h14M3 10h14M3 15h14" />,
   overview: (
     <>
       <rect x="3" y="3" width="5" height="5" rx="1" />

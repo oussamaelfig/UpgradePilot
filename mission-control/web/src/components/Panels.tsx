@@ -278,6 +278,17 @@ function TestRunCard({
   );
 }
 
+/** One success predicate for "verified" wording: clean exit, zero failures
+ *  and errors, and no legacy call sites left by the scan. */
+export function verificationClean(run: TestRun | undefined): boolean {
+  return (
+    !!run &&
+    run.exit_code === 0 &&
+    run.failed + run.errors === 0 &&
+    (run.legacy_patterns_remaining ?? 0) === 0
+  );
+}
+
 export function BeforeAfterPanel({ mission }: { mission: Mission }) {
   if (!mission.baseline && !mission.verification) return null;
   const packageName = mission.package.split(" ")[0] ?? mission.package;
@@ -288,7 +299,7 @@ export function BeforeAfterPanel({ mission }: { mission: Mission }) {
       title="Deterministic test evidence"
       icon="evidence"
       badge={
-        mission.verification?.exit_code === 0 ? (
+        verificationClean(mission.verification) ? (
           <span className="inline-flex items-center gap-1 rounded border border-console-success/20 bg-console-success-bg px-1.5 py-0.5 font-mono text-[9px] uppercase text-console-success">
             <ConsoleIcon name="check" size={10} />
             verified
@@ -393,9 +404,10 @@ const ACTIVITY_STYLES: Record<string, string> = {
   info: "text-console-faint",
 };
 
-export function ActivityFeed({ mission }: { mission: Mission }) {
+export function ActivityFeed({ mission, connection }: { mission: Mission; connection: string }) {
   if (mission.activity.length === 0) return null;
   const items = [...mission.activity].slice(-30).reverse();
+  const live = connection === "live";
 
   return (
     <Panel
@@ -403,9 +415,16 @@ export function ActivityFeed({ mission }: { mission: Mission }) {
       title="Agent activity"
       icon="activity"
       badge={
-        <span className="inline-flex items-center gap-1.5 font-mono text-[9px] uppercase text-console-success">
-          <span className="h-1.5 w-1.5 rounded-full bg-console-success" aria-hidden="true" />
-          streaming
+        <span
+          className={`inline-flex items-center gap-1.5 font-mono text-[9px] uppercase ${
+            live ? "text-console-success" : "text-console-warning"
+          }`}
+        >
+          <span
+            className={`h-1.5 w-1.5 rounded-full ${live ? "bg-console-success" : "bg-console-warning"}`}
+            aria-hidden="true"
+          />
+          {live ? "streaming" : "reconnecting"}
         </span>
       }
       bodyClassName="p-0"
@@ -455,7 +474,10 @@ export function PrCard({ mission }: { mission: Mission }) {
         </h2>
         <p className="truncate text-xs text-console-muted">
           <span className="font-mono text-console-success">{mission.pr.branch}</span>
-          {" · "}verified and approved by a human
+          {" · "}
+          {verificationClean(mission.verification)
+            ? "verified and approved by a human"
+            : "approved by a human"}
         </p>
       </div>
       <a

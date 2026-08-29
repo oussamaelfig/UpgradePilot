@@ -214,14 +214,19 @@ export function ApprovalModal({
             </h3>
             <div className="rounded-[10px] border border-console-line bg-console-panel p-3">
               <p className="whitespace-pre-line text-xs leading-5 text-console-muted">{approval.evidence_summary}</p>
-              <div className="mt-3 flex flex-wrap gap-2 border-t border-console-line pt-3">
-                <ProofChip icon="evidence" label="Test suite rerun" />
-                <ProofChip icon="changes" label="Legacy scan complete" />
-                <ProofChip
-                  icon="file"
-                  label={typeof changedFiles === "number" ? `${changedFiles} files in change set` : "Change set recorded"}
-                />
-              </div>
+              {/* Each chip is a factual claim: render it only when the mission
+                  snapshot actually carries the evidence behind it. */}
+              {(verification || typeof changedFiles === "number") && (
+                <div className="mt-3 flex flex-wrap gap-2 border-t border-console-line pt-3">
+                  {verification && <ProofChip icon="evidence" label="Test suite rerun" />}
+                  {typeof verification?.legacy_patterns_remaining === "number" && (
+                    <ProofChip icon="changes" label="Legacy scan complete" />
+                  )}
+                  {typeof changedFiles === "number" && (
+                    <ProofChip icon="file" label={`${changedFiles} files in change set`} />
+                  )}
+                </div>
+              )}
             </div>
           </section>
 

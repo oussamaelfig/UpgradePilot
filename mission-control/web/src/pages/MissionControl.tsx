@@ -97,7 +97,7 @@ export function MissionControl() {
               aria-label="Mission details"
               className="min-w-0 space-y-3 lg:col-start-2 xl:col-start-auto"
             >
-              <ActivityFeed mission={mission} />
+              <ActivityFeed mission={mission} connection={connection} />
               <AffectedFilesPanel mission={mission} />
               <MigrationPlanPanel mission={mission} />
             </aside>
