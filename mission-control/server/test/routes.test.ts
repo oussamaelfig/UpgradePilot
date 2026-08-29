@@ -112,6 +112,30 @@ describe("SSE replay gap", () => {
   });
 });
 
+describe("MCP transport method handling", () => {
+  // Streamable-HTTP clients probe GET /mcp (server-initiated stream) and
+  // DELETE /mcp (session teardown). The stateless transport supports neither;
+  // they must get a clean 405 + JSON-RPC error, not Express's default 404.
+  it("answers GET /mcp with 405 and a JSON-RPC method-not-allowed body", async () => {
+    const store = new MissionStore();
+    const response = await request(app(store)).get("/mcp");
+    expect(response.status).toBe(405);
+    expect(response.headers.allow).toBe("POST");
+    expect(response.body).toEqual({
+      jsonrpc: "2.0",
+      error: { code: -32000, message: "Method not allowed." },
+      id: null,
+    });
+  });
+
+  it("answers DELETE /mcp with 405 and a JSON-RPC method-not-allowed body", async () => {
+    const store = new MissionStore();
+    const response = await request(app(store)).delete("/mcp");
+    expect(response.status).toBe(405);
+    expect(response.body.error.code).toBe(-32000);
+  });
+});
+
 describe("MCP endpoint auth", () => {
   it("rejects unauthenticated MCP requests when a token is configured", async () => {
     const store = new MissionStore();

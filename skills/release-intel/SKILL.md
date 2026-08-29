@@ -28,9 +28,11 @@ resolve them from the registry.
    `breaking_changes.schema.json`: `symbol`, `change_type` (one of `removed`, `renamed`,
    `signature_changed`, `config_changed`, `behavior_changed`), `before`, `after`, `source_url`.
    Only record changes the documentation actually states. Do not pad the list.
-6. Submit via `mission-control.report_breaking_changes`. The server validates the payload and
-   rejects malformed reports — if rejected, fix the payload from the tool's structured errors and
-   resubmit; never work around validation.
+6. Submit via `mission-control.report_breaking_changes` as ONE consolidated report — every
+   accepted call overwrites the previous table, so never split findings across calls. The server
+   validates the payload and rejects malformed reports; a rejected call stores nothing — fix the
+   payload from the tool's structured errors and resubmit. The corrected resubmission is still
+   the mission's single report; never work around validation.
 7. Mark the stage `done` with a one-line summary (e.g. "6 breaking changes extracted").
 
 ## Drift recovery (self-repair)
@@ -54,6 +56,21 @@ If the mission request explicitly says to *simulate documentation drift*, treat 
 source as drifted without fetching it (report the warning event, noting it is a simulated drift),
 then execute the real recovery path — genuinely fetch the fallback source. Never simulate the
 recovery itself.
+
+## Delegation contract (when this procedure runs in a subagent)
+
+Dynamic subagents do not inherit skills or mission context. The delegating orchestrator MUST
+embed in the subagent brief: the active `mission_id` (subagents never call `start_mission`),
+the package being migrated, and the full registry entry for it — ordered source URLs, the
+`allowed_publishers` allowlist, and the `recovery_query` — copied verbatim from `sources.yaml`.
+A brief without the allowlist is invalid: the subagent would have no way to judge authenticity
+and must refuse to substitute sources from memory.
+
+The brief must also require the subagent to include in its final answer: the `mission_id` it
+reported with, each mission-control call it made with the server's accepted/rejected result,
+and every `source_url` it cited. Mission Control has no dashboard read-back tool — the
+orchestrator verifies delegation through this returned evidence and redoes any report that is
+missing, rejected, mis-keyed, or cites a non-allowlisted source.
 
 ## Hard rules
 

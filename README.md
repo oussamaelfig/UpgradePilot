@@ -220,8 +220,10 @@ Each PR ends with a **Qodo engagement log** table classifying every finding
 
 ## Repository layout
 
-- `mission-control/` — MCP server, approval state machine, zod schemas, SSE API, React dashboard
-- `skills/` — git-backed TrueForge skills: `release-intel` (Bright Data pipeline + registry + schema), `openai-v1-migration` (deterministic sandbox playbook)
-- `agent/` — the UpgradePilot agent definition (system prompt) and TrueForge setup guide
-- `demo-target/` — source of the briefbot fixture (published to its own repo for live runs)
-- `best_practices.md`, `.pr_agent.toml`, `.cursor/rules/` — the standards Qodo enforces here
+- `mission-control/` — MCP server + web UI. `/` serves the product landing page and
+  `/mission` the live Mission Control dashboard (timeline, evidence, approval screen);
+  the server rewrites every non-API path to the SPA, so both URLs deep-link directly
+- `skills/` — TrueForge skills: release intelligence (Bright Data pipeline) and migration playbooks
+- `agent/` — TrueForge agent instructions and setup
+- `demo-target/` — source of the demo fixture repository the agent migrates
+- `best_practices.md` / `.pr_agent.toml` — repository engineering standards enforced by Qodo

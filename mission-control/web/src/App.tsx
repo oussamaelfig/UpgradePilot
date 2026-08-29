@@ -1,67 +1,44 @@
-import { ApprovalModal } from "./components/ApprovalModal";
-import { Header } from "./components/Header";
-import {
-  ActivityFeed,
-  AffectedFilesPanel,
-  BeforeAfterPanel,
-  BreakingChangesPanel,
-  MigrationPlanPanel,
-  PrCard,
-} from "./components/Panels";
-import { Timeline } from "./components/Timeline";
-import { useMission } from "./useMission";
+import { useEffect } from "react";
+import { Landing } from "./pages/Landing";
+import { MissionControl } from "./pages/MissionControl";
+import { Link, useRoute } from "./router";
 
-function EmptyState({ connection }: { connection: string }) {
-  return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-4 px-6 text-center">
-      <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500/25 to-emerald-500/25 ring-1 ring-zinc-700">
-        <span className="text-3xl">🛫</span>
-      </div>
-      <div>
-        <h1 className="text-xl font-semibold text-zinc-100">UpgradePilot Mission Control</h1>
-        <p className="mt-1 text-[13px] text-zinc-500">From breaking change to verified PR.</p>
-      </div>
-      <div className="max-w-md rounded-xl border border-zinc-800 bg-zinc-900/50 p-4 text-left">
-        <p className="text-[12px] leading-5 text-zinc-400">
-          Waiting for a mission. Start the <span className="font-mono text-zinc-300">UpgradePilot</span> agent in
-          TrueForge and ask it to upgrade a repository — the timeline lights up here the moment it calls{" "}
-          <span className="font-mono text-sky-300">start_mission</span>.
-        </p>
-      </div>
-      <span className="flex items-center gap-1.5 text-[11px] text-zinc-600">
-        <span
-          className={`inline-block h-1.5 w-1.5 rounded-full ${connection === "live" ? "bg-emerald-400" : "bg-amber-400"}`}
-        />
-        {connection === "live" ? "connected to mission control" : "connecting…"}
-      </span>
-    </div>
-  );
-}
+const TITLES: Record<string, string> = {
+  "/": "UpgradePilot — From breaking change to verified PR",
+  "/mission": "Mission Control — UpgradePilot",
+};
 
 export default function App() {
-  const { mission, status, connection, decide } = useMission();
+  const route = useRoute();
+  const path = route === "" ? "/" : route;
 
-  if (!mission || !status) return <EmptyState connection={connection} />;
+  useEffect(() => {
+    document.title = TITLES[path] ?? "Page not found — UpgradePilot";
+  }, [path]);
 
-  const pendingApproval = mission.approvals.find((a) => a.status === "pending");
+  if (path === "/") return <Landing />;
+  if (path === "/mission") return <MissionControl />;
+  // Anything else is a typo or a stale link: never mount the live dashboard
+  // (and its API/SSE client) for a URL we do not recognize.
+  return <NotFound path={path} />;
+}
 
+function NotFound({ path }: { path: string }) {
   return (
-    <div className="mx-auto min-h-screen max-w-7xl px-4 py-5 lg:px-6">
-      <Header mission={mission} status={status} connection={connection} />
-      <main className="mt-5 grid gap-4 lg:grid-cols-[280px_1fr]">
-        <div className="space-y-4">
-          <Timeline mission={mission} />
-          <ActivityFeed mission={mission} />
-        </div>
-        <div className="min-w-0 space-y-4">
-          <PrCard mission={mission} />
-          <BeforeAfterPanel mission={mission} />
-          <BreakingChangesPanel mission={mission} />
-          <AffectedFilesPanel mission={mission} />
-          <MigrationPlanPanel mission={mission} />
-        </div>
-      </main>
-      {pendingApproval && <ApprovalModal mission={mission} approval={pendingApproval} onDecide={decide} />}
-    </div>
+    <main className="flex min-h-screen flex-col items-center justify-center gap-3 bg-surface px-6 text-center">
+      <p className="font-mono text-sm text-ink-tertiary">404</p>
+      <h1 className="text-xl font-semibold tracking-tight text-ink">Page not found</h1>
+      <p className="text-sm text-ink-secondary">
+        <code className="font-mono">{path}</code> doesn&apos;t exist here.
+      </p>
+      <div className="mt-2 flex gap-3">
+        <Link to="/" className="btn">
+          Landing page
+        </Link>
+        <Link to="/mission" className="btn btn-blue">
+          Mission Control
+        </Link>
+      </div>
+    </main>
   );
 }

@@ -1,5 +1,6 @@
 import type { Mission, Stage } from "../types";
 import { STAGE_LABELS, STAGE_ORDER } from "../types";
+import { ConsoleIcon } from "./ConsoleIcons";
 
 type StageState = "pending" | "active" | "done" | "failed";
 
@@ -8,6 +9,16 @@ function stageStates(mission: Mission): Record<Stage, StageState> {
   for (const record of mission.stages) {
     states[record.stage] = record.status === "active" ? "active" : record.status;
   }
+  // Event producers can advance to the next stage without emitting a second
+  // record that closes the previous active stage. Once a later stage has
+  // finished, an earlier stage cannot still be running in the UI.
+  const furthestFinished = mission.stages.reduce((furthest, record) => {
+    if (record.status === "active") return furthest;
+    return Math.max(furthest, STAGE_ORDER.indexOf(record.stage));
+  }, -1);
+  STAGE_ORDER.forEach((stage, index) => {
+    if (index < furthestFinished && states[stage] === "active") states[stage] = "done";
+  });
   return states;
 }
 
@@ -22,72 +33,89 @@ function latestSummary(mission: Mission, stage: Stage): string | undefined {
 function Dot({ state }: { state: StageState }) {
   if (state === "done") {
     return (
-      <div className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/20 ring-1 ring-emerald-400/60">
-        <svg viewBox="0 0 12 12" className="h-3 w-3 fill-none stroke-emerald-400 stroke-2">
-          <path d="M2 6.5 4.8 9 10 3.5" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      </div>
+      <span className="flex h-5 w-5 items-center justify-center rounded-full border border-console-success/25 bg-console-success-bg text-console-success">
+        <ConsoleIcon name="check" size={12} />
+      </span>
     );
   }
   if (state === "failed") {
     return (
-      <div className="flex h-5 w-5 items-center justify-center rounded-full bg-red-500/20 ring-1 ring-red-400/60">
-        <svg viewBox="0 0 12 12" className="h-3 w-3 fill-none stroke-red-400 stroke-2">
-          <path d="M3 3l6 6M9 3l-6 6" strokeLinecap="round" />
-        </svg>
-      </div>
+      <span className="flex h-5 w-5 items-center justify-center rounded-full border border-console-danger/25 bg-console-danger-bg text-console-danger">
+        <ConsoleIcon name="x" size={11} />
+      </span>
     );
   }
   if (state === "active") {
     return (
-      <div className="stage-active-dot flex h-5 w-5 items-center justify-center rounded-full bg-sky-500/25 ring-1 ring-sky-400">
-        <div className="h-2 w-2 rounded-full bg-sky-400" />
-      </div>
+      <span className="stage-active-dot flex h-5 w-5 items-center justify-center rounded-full border border-console-info/30 bg-console-info-bg">
+        <span className="h-1.5 w-1.5 rounded-full bg-console-info" />
+      </span>
     );
   }
-  return <div className="h-5 w-5 rounded-full border border-zinc-700 bg-zinc-900" />;
+  return <span className="h-5 w-5 rounded-full border border-console-line bg-console-panel" />;
 }
 
 export function Timeline({ mission }: { mission: Mission }) {
   const states = stageStates(mission);
+  const completed = Object.values(states).filter((state) => state === "done").length;
+
   return (
-    <nav className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
-      <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-zinc-500">Execution timeline</h2>
-      <ol>
+    <nav
+      id="execution"
+      aria-label="Execution timeline"
+      className="panel-enter scroll-mt-24 overflow-hidden rounded-[10px] border border-console-line bg-console-panel"
+    >
+      <div className="flex h-10 items-center justify-between border-b border-console-line px-3">
+        <h2 className="flex items-center gap-2 text-sm font-medium text-console-text">
+          <ConsoleIcon name="timeline" size={15} className="text-console-muted" />
+          Execution
+        </h2>
+        <span className="font-mono text-[10px] text-console-faint">
+          {completed}/{STAGE_ORDER.length}
+        </span>
+      </div>
+      <ol className="p-1.5">
         {STAGE_ORDER.map((stage, index) => {
           const state = states[stage];
           const summary = latestSummary(mission, stage);
           return (
-            <li key={stage} className="relative flex gap-3 pb-4 last:pb-0">
+            <li
+              key={stage}
+              className={`relative flex min-h-10 gap-2.5 rounded-md px-2 py-1.5 ${
+                state === "active" ? "bg-console-subtle" : ""
+              }`}
+            >
               {index < STAGE_ORDER.length - 1 && (
                 <span
-                  className={`absolute left-[9.5px] top-5 h-full w-px ${
-                    state === "done" ? "bg-emerald-500/40" : "bg-zinc-800"
+                  className={`absolute left-[17.5px] top-7 h-[calc(100%-20px)] w-px ${
+                    state === "done" ? "bg-console-success/35" : "bg-console-line"
                   }`}
+                  aria-hidden="true"
                 />
               )}
-              <div className="relative z-10 mt-0.5 shrink-0">
+              <div className="relative z-10 mt-0.5 shrink-0" aria-hidden="true">
                 <Dot state={state} />
               </div>
               <div className="min-w-0">
                 <p
-                  className={`text-[13px] font-medium leading-5 ${
+                  className={`truncate text-xs font-medium leading-4 ${
                     state === "active"
-                      ? "text-sky-300"
+                      ? "text-console-text"
                       : state === "done"
-                        ? "text-zinc-200"
+                        ? "text-console-muted"
                         : state === "failed"
-                          ? "text-red-300"
-                          : "text-zinc-600"
+                          ? "text-console-danger"
+                          : "text-console-faint"
                   }`}
                 >
                   {STAGE_LABELS[stage]}
                 </p>
                 {summary && state !== "pending" && (
-                  <p className="mt-0.5 truncate text-[11px] leading-4 text-zinc-500" title={summary}>
+                  <p className="truncate text-[10px] leading-4 text-console-faint" title={summary}>
                     {summary}
                   </p>
                 )}
+                <span className="sr-only"> — {state}</span>
               </div>
             </li>
           );
