@@ -61,9 +61,13 @@ must be public to clone.
    - `mission-control.report_baseline` with the real command, exit code, counts, resolved
      version, and excerpt.
    - If the baseline unexpectedly PASSES, do not conclude anything yet: run the legacy-pattern
-     scan from step 4 first. Only when tests pass AND the scan finds zero legacy call sites may
-     you report that there is nothing to migrate; passing tests alone do not prove the affected
-     call sites are gone (coverage gaps). If the scan finds matches, proceed with the migration.
+     scan from step 4 first. Passing tests alone do not prove the affected call sites are gone
+     (coverage gaps). If the scan finds matches, proceed with the full migration. If the scan is
+     also clean, the migration reduces to the dependency pin itself: continue with step 3 as a
+     pin-only change (update `requirements.txt` to the resolved target) and verify — the venv
+     upgrade you just tested is temporary and the repository must not remain pinned to the old
+     SDK. Report "nothing to migrate" only when the repository does not pin the dependency at
+     all.
 3. **Migrate** (`report_stage: migrating_code`)
    - Apply the smallest set of edits that completes the migration, using the pattern map plus
      the breaking changes extracted from the live documentation. Update code, tests, and
@@ -78,9 +82,15 @@ must be public to clone.
      The venv exclusion is mandatory: without it the scan walks the installed SDK's own sources.
      The last three patterns catch legacy dict-style access on response objects
      (`resp["choices"][...]`, `resp["data"][...]`, `resp["results"][...]`), which typed v1
-     responses no longer support. They are heuristics: if a match is demonstrably not an SDK
-     response access (an unrelated dict that happens to use these keys), record that
-     justification in the migration plan notes instead of changing unrelated code.
+     responses no longer support. They are heuristics; handle false positives explicitly:
+     - A match is a *justified exception* only when it is demonstrably not an SDK response
+       access (an unrelated dict that happens to use these keys). Do not change unrelated code.
+     - `legacy_patterns_remaining` = total matches − justified exceptions. The verification gate
+       is `legacy_patterns_remaining == 0`, not raw grep silence.
+     - The report's `log_excerpt` must include the full raw scan output plus one line per
+       justified exception naming the file/line and the reason, and the same justifications go
+       in the migration plan notes. Never report an adjusted count without showing the raw
+       matches it was derived from.
    - `mission-control.report_verification` with real counts, the resolved version, and
      `legacy_patterns_remaining` from the scan.
    - If verification fails, iterate on the migration (back to step 3); never report numbers you

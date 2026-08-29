@@ -44,17 +44,18 @@ describe("agent-facing JSON schema stays in sync with the zod enforcement point"
     expect([...schemaDoc.properties.source.required].sort()).toEqual(requiredKeysOf(sourceShape));
   });
 
-  it("list bounds match", () => {
+  it("list bounds match the zod definition exactly", () => {
     const items = schemaDoc.properties.breaking_changes;
-    expect(items.minItems).toBe(1);
-    expect(items.maxItems).toBe(50);
-    const parsed = ReportBreakingChangesSchema.safeParse({
-      mission_id: "m",
-      source: { url: "https://github.com/openai/x", title: "t", retrieved_via: "brightdata" },
-      from_version: "0.28.1",
-      to_version: "3.6.0",
-      breaking_changes: [],
-    });
-    expect(parsed.success).toBe(false); // zod also enforces minItems 1
+    // Introspect the enforced bounds instead of hard-coding them, so a change
+    // to either side (zod or JSON schema) breaks this test.
+    const arrayDef = (
+      ReportBreakingChangesSchema.shape.breaking_changes as unknown as {
+        _def: { minLength: { value: number } | null; maxLength: { value: number } | null };
+      }
+    )._def;
+    expect(items.minItems).toBe(arrayDef.minLength?.value);
+    expect(items.maxItems).toBe(arrayDef.maxLength?.value);
+    expect(typeof items.minItems).toBe("number");
+    expect(typeof items.maxItems).toBe("number");
   });
 });
