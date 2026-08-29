@@ -8,14 +8,17 @@ export function ApprovalModal({
 }: {
   mission: Mission;
   approval: Approval;
-  onDecide: (id: string, decision: "approved" | "rejected") => Promise<void>;
+  onDecide: (id: string, decision: "approved" | "rejected") => Promise<{ ok: true } | { ok: false; error: string }>;
 }) {
   const [busy, setBusy] = useState<"approved" | "rejected" | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const decide = async (decision: "approved" | "rejected") => {
     setBusy(decision);
+    setError(null);
     try {
-      await onDecide(approval.id, decision);
+      const outcome = await onDecide(approval.id, decision);
+      if (!outcome.ok) setError(outcome.error);
     } finally {
       setBusy(null);
     }
@@ -80,6 +83,12 @@ export function ApprovalModal({
             {approval.evidence_summary}
           </pre>
         </div>
+
+        {error && (
+          <div className="mb-3 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-[12px] text-red-300">
+            Your decision was not recorded: {error}
+          </div>
+        )}
 
         <div className="flex gap-3">
           <button

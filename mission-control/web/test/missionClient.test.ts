@@ -78,10 +78,37 @@ describe("mission client staleness guard", () => {
       },
       onState: () => {},
     });
-    await client.decide("abc", "approved");
+    const outcome = await client.decide("abc", "approved");
 
+    expect(outcome.ok).toBe(true);
     expect(calls[0]!.input).toBe("/api/approvals/abc/decision");
     expect(JSON.parse(String(calls[0]!.init?.body))).toMatchObject({ decision: "approved" });
     expect(calls[1]!.input).toBe("/api/mission");
+  });
+
+  it("decide surfaces rejected submissions instead of resolving silently", async () => {
+    // Regression test for a review finding: a failed decision POST must be
+    // reported to the operator, not swallowed by the refresh.
+    const client = createMissionClient({
+      fetchImpl: (input) =>
+        input.includes("/decision")
+          ? Promise.resolve({ status: 409, json: () => Promise.resolve({ error: "already decided: approved" }) })
+          : Promise.resolve(jsonResponse(missionPayload("m"))),
+      onState: () => {},
+    });
+    const outcome = await client.decide("abc", "rejected");
+    expect(outcome).toEqual({ ok: false, error: "already decided: approved" });
+  });
+
+  it("decide surfaces network failures", async () => {
+    const client = createMissionClient({
+      fetchImpl: (input) =>
+        input.includes("/decision")
+          ? Promise.reject(new Error("socket hang up"))
+          : Promise.resolve(jsonResponse(missionPayload("m"))),
+      onState: () => {},
+    });
+    const outcome = await client.decide("abc", "approved");
+    expect(outcome.ok).toBe(false);
   });
 });

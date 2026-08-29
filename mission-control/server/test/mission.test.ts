@@ -211,6 +211,29 @@ describe("persistence", () => {
     expect(() => store.activeMission()).toThrowError(/no active mission/);
   });
 
+  it("treats structurally malformed mission entries as corruption, not data", () => {
+    // Regression test for a review finding: a parseable snapshot whose mission
+    // entries lack required arrays must go down the backup path rather than
+    // loading missions that break downstream reads like missionStatus().
+    const dir = mkdtempSync(join(tmpdir(), "mc-malformed-"));
+    const file = join(dir, "state.json");
+    writeFileSync(
+      file,
+      JSON.stringify({
+        seq: 3,
+        activeMissionId: "m1",
+        missions: [{ id: "m1", title: "no arrays here" }],
+        events: [],
+      }),
+    );
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const store = new MissionStore(file);
+    expect(store.hasActiveMission()).toBe(false);
+    expect(readdirSync(dir).filter((name) => name.includes(".corrupt-"))).toHaveLength(1);
+    errorSpy.mockRestore();
+  });
+
   it("backs up a corrupt state file instead of silently discarding it", () => {
     // Regression test for a review finding: read/parse failures must be
     // reported and the unreadable snapshot preserved for inspection.

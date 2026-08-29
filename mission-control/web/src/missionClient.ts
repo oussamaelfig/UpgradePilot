@@ -40,13 +40,32 @@ export function createMissionClient(options: {
     }
   }
 
-  async function decide(approvalId: string, decision: "approved" | "rejected"): Promise<void> {
-    await fetchImpl(`/api/approvals/${approvalId}/decision`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ decision, decided_by: "human-operator" }),
-    });
+  /**
+   * Submit a decision. Failures are surfaced, never swallowed: an operator
+   * must know their approval/rejection was not recorded.
+   */
+  async function decide(
+    approvalId: string,
+    decision: "approved" | "rejected",
+  ): Promise<{ ok: true } | { ok: false; error: string }> {
+    let outcome: { ok: true } | { ok: false; error: string };
+    try {
+      const response = await fetchImpl(`/api/approvals/${approvalId}/decision`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ decision, decided_by: "human-operator" }),
+      });
+      if (response.status >= 200 && response.status < 300) {
+        outcome = { ok: true };
+      } else {
+        const body = (await response.json().catch(() => ({}))) as { error?: string };
+        outcome = { ok: false, error: body.error ?? `decision rejected (HTTP ${response.status})` };
+      }
+    } catch (error) {
+      outcome = { ok: false, error: error instanceof Error ? error.message : "network failure" };
+    }
     await refresh();
+    return outcome;
   }
 
   return { refresh, decide };
