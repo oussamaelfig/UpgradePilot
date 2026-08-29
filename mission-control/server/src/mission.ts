@@ -71,6 +71,26 @@ export class MissionStoreError extends Error {
   }
 }
 
+export type MissionStatus =
+  | { label: "PR OPENED"; kind: "success" }
+  | { label: "AWAITING APPROVAL"; kind: "waiting" }
+  | { label: "REJECTED"; kind: "danger" }
+  | { label: "ATTENTION"; kind: "danger" }
+  | { label: "RUNNING"; kind: "active" };
+
+/**
+ * Domain status of a mission, in precedence order. Lives here (not in the
+ * dashboard) because it is a business decision over PR, approval, and stage
+ * state — the UI only renders it.
+ */
+export function missionStatus(mission: Mission): MissionStatus {
+  if (mission.pr) return { label: "PR OPENED", kind: "success" };
+  if (mission.approvals.some((a) => a.status === "pending")) return { label: "AWAITING APPROVAL", kind: "waiting" };
+  if (mission.approvals.some((a) => a.status === "rejected")) return { label: "REJECTED", kind: "danger" };
+  if (mission.stages.some((s) => s.status === "failed")) return { label: "ATTENTION", kind: "danger" };
+  return { label: "RUNNING", kind: "active" };
+}
+
 type Listener = (event: MissionEvent) => void;
 
 export class MissionStore {
@@ -107,6 +127,20 @@ export class MissionStore {
   /** Oldest event sequence still available for replay (persistence caps history). */
   oldestAvailableSeq(): number | null {
     return this.events.length > 0 ? this.events[0]!.seq : null;
+  }
+
+  /**
+   * Domain decision: is a client's requested replay position unservable —
+   * older than the retained window, or ahead of this store's own sequence
+   * (store reset/replaced)? Returns the gap payload to announce, or null when
+   * replay from `since` is complete and truthful.
+   */
+  replayGap(since: number): { requested_since: number; oldest_available: number | null; last_seq: number } | null {
+    const oldest = this.oldestAvailableSeq();
+    const behindWindow = since > 0 && oldest !== null && since < oldest - 1;
+    const aheadOfStore = since > this.seq;
+    if (!behindWindow && !aheadOfStore) return null;
+    return { requested_since: since, oldest_available: oldest, last_seq: this.seq };
   }
 
   // ---------- mission lifecycle ----------
@@ -336,6 +370,16 @@ export class MissionStore {
       const events = Array.isArray(state.events) ? state.events : [];
       const missions = new Map<string, Mission>();
       for (const mission of Array.isArray(state.missions) ? state.missions : []) {
+        // Structural validation: a mission that would break downstream reads
+        // (missionStatus, approval lookups) marks the whole snapshot corrupt.
+        if (
+          typeof mission?.id !== "string" ||
+          !Array.isArray(mission.stages) ||
+          !Array.isArray(mission.approvals) ||
+          !Array.isArray(mission.activity)
+        ) {
+          throw new Error(`structurally invalid mission entry: ${JSON.stringify(mission)?.slice(0, 120)}`);
+        }
         missions.set(mission.id, mission);
       }
       const activeMissionId =

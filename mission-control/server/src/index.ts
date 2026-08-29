@@ -19,6 +19,11 @@ const webDist = join(here, "..", "..", "web", "dist");
 if (existsSync(webDist)) {
   app.use(express.static(webDist));
   app.get(/^\/(?!api|mcp).*/, (_req, res) => res.sendFile(join(webDist, "index.html")));
+} else {
+  console.warn(
+    "mission-control: dashboard build not found — serving API only. " +
+      "Run `npm run setup` in mission-control/ (or `npm run build` in mission-control/web) to build it.",
+  );
 }
 
 app.listen(port, "127.0.0.1", () => {
