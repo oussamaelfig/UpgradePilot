@@ -1,11 +1,13 @@
 import type { Mission, MissionStatus } from "../types";
+import { Link } from "../router";
+import { Wordmark } from "./Logo";
 
 // Presentation-only mapping; the status itself is a server-side domain decision.
 const STATUS_STYLES: Record<MissionStatus["kind"], string> = {
-  success: "bg-emerald-500/15 text-emerald-300 ring-emerald-400/40",
-  waiting: "bg-amber-500/15 text-amber-300 ring-amber-400/40",
-  danger: "bg-red-500/15 text-red-300 ring-red-400/40",
-  active: "bg-sky-500/15 text-sky-300 ring-sky-400/40",
+  success: "bg-ok/15 text-ok-deep",
+  waiting: "bg-warn/15 text-warn-deep",
+  danger: "bg-bad/10 text-bad-deep",
+  active: "bg-accent/10 text-accent",
 };
 
 export function Header({
@@ -18,51 +20,52 @@ export function Header({
   connection: string;
 }) {
   return (
-    <header className="flex flex-wrap items-center gap-x-4 gap-y-2">
-      <div className="flex items-center gap-2.5">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-sky-500/30 to-emerald-500/30 ring-1 ring-zinc-700">
-          <span className="text-lg">🛫</span>
+    <header className="sticky top-0 z-40 border-b border-line bg-white/90 backdrop-blur">
+      <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 lg:px-6">
+        <div className="flex items-center gap-2.5">
+          <Link to="/" title="Back to the UpgradePilot site">
+            <Wordmark size={24} />
+          </Link>
+          <span className="rounded-sm bg-ink/5 px-1.5 py-0.5 text-xxs font-semibold uppercase tracking-wider text-ink-secondary">
+            Mission Control
+          </span>
         </div>
-        <div>
-          <h1 className="text-[15px] font-semibold leading-5 text-zinc-100">UpgradePilot</h1>
-          <p className="text-[11px] leading-4 text-zinc-500">Mission Control</p>
+
+        <div className="mx-1 hidden h-6 w-px bg-line sm:block" />
+
+        <div className="flex items-center gap-3">
+          <a
+            className="font-mono text-base text-ink-secondary transition-colors hover:text-accent"
+            href={`https://github.com/${mission.repo}`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            {mission.repo}
+          </a>
+          <span className="rounded-md border border-line bg-surface px-2 py-1 font-mono text-sm text-ink">
+            {mission.package}
+            {"  "}
+            <span className="text-bad-deep">{mission.from_version ?? "?"}</span>
+            <span className="mx-1 text-ink-tertiary">→</span>
+            <span className="text-ok-deep">{mission.to_version ?? "?"}</span>
+          </span>
         </div>
-      </div>
 
-      <div className="mx-2 hidden h-8 w-px bg-zinc-800 sm:block" />
-
-      <div className="flex items-center gap-3">
-        <a
-          className="font-mono text-[13px] text-zinc-300 hover:text-sky-300"
-          href={`https://github.com/${mission.repo}`}
-          target="_blank"
-          rel="noreferrer"
-        >
-          {mission.repo}
-        </a>
-        <span className="rounded-md bg-zinc-800/80 px-2 py-1 font-mono text-[12px] text-zinc-300 ring-1 ring-zinc-700">
-          {mission.package}
-          {"  "}
-          <span className="text-red-300">{mission.from_version ?? "?"}</span>
-          <span className="mx-1 text-zinc-500">→</span>
-          <span className="text-emerald-300">{mission.to_version ?? "?"}</span>
-        </span>
-      </div>
-
-      <div className="ml-auto flex items-center gap-3">
-        <span
-          className={`rounded-full px-3 py-1 text-[11px] font-semibold tracking-wider ring-1 ${STATUS_STYLES[status.kind]}`}
-        >
-          {status.label}
-        </span>
-        <span className="flex items-center gap-1.5 text-[11px] text-zinc-500">
+        <div className="ml-auto flex items-center gap-3">
           <span
-            className={`inline-block h-1.5 w-1.5 rounded-full ${
-              connection === "live" ? "bg-emerald-400" : "bg-amber-400"
-            }`}
-          />
-          {connection === "live" ? "live" : "reconnecting"}
-        </span>
+            className={`rounded-full px-3 py-1 text-xs font-semibold tracking-wider ${STATUS_STYLES[status.kind]}`}
+          >
+            {status.label}
+          </span>
+          <span className="flex items-center gap-1.5 text-xs text-ink-tertiary">
+            <span
+              className={`inline-block h-1.5 w-1.5 rounded-full ${
+                connection === "live" ? "bg-ok" : "bg-warn"
+              }`}
+            />
+            {connection === "live" ? "live" : "reconnecting"}
+          </span>
+        </div>
       </div>
     </header>
   );

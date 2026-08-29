@@ -22,8 +22,8 @@ function latestSummary(mission: Mission, stage: Stage): string | undefined {
 function Dot({ state }: { state: StageState }) {
   if (state === "done") {
     return (
-      <div className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/20 ring-1 ring-emerald-400/60">
-        <svg viewBox="0 0 12 12" className="h-3 w-3 fill-none stroke-emerald-400 stroke-2">
+      <div className="flex h-5 w-5 items-center justify-center rounded-full bg-ok/20">
+        <svg viewBox="0 0 12 12" className="h-3 w-3 fill-none stroke-ok-deep stroke-2">
           <path d="M2 6.5 4.8 9 10 3.5" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </div>
@@ -31,8 +31,8 @@ function Dot({ state }: { state: StageState }) {
   }
   if (state === "failed") {
     return (
-      <div className="flex h-5 w-5 items-center justify-center rounded-full bg-red-500/20 ring-1 ring-red-400/60">
-        <svg viewBox="0 0 12 12" className="h-3 w-3 fill-none stroke-red-400 stroke-2">
+      <div className="flex h-5 w-5 items-center justify-center rounded-full bg-bad/15">
+        <svg viewBox="0 0 12 12" className="h-3 w-3 fill-none stroke-bad-deep stroke-2">
           <path d="M3 3l6 6M9 3l-6 6" strokeLinecap="round" />
         </svg>
       </div>
@@ -40,19 +40,21 @@ function Dot({ state }: { state: StageState }) {
   }
   if (state === "active") {
     return (
-      <div className="stage-active-dot flex h-5 w-5 items-center justify-center rounded-full bg-sky-500/25 ring-1 ring-sky-400">
-        <div className="h-2 w-2 rounded-full bg-sky-400" />
+      <div className="stage-active-dot flex h-5 w-5 items-center justify-center rounded-full bg-accent/15">
+        <div className="h-2 w-2 rounded-full bg-accent" />
       </div>
     );
   }
-  return <div className="h-5 w-5 rounded-full border border-zinc-700 bg-zinc-900" />;
+  return <div className="h-5 w-5 rounded-full border border-line bg-white" />;
 }
 
 export function Timeline({ mission }: { mission: Mission }) {
   const states = stageStates(mission);
   return (
-    <nav className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
-      <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-zinc-500">Execution timeline</h2>
+    <nav className="rounded-lg border border-line bg-white p-4 shadow-sm">
+      <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-ink-tertiary">
+        Execution timeline
+      </h2>
       <ol>
         {STAGE_ORDER.map((stage, index) => {
           const state = states[stage];
@@ -62,7 +64,7 @@ export function Timeline({ mission }: { mission: Mission }) {
               {index < STAGE_ORDER.length - 1 && (
                 <span
                   className={`absolute left-[9.5px] top-5 h-full w-px ${
-                    state === "done" ? "bg-emerald-500/40" : "bg-zinc-800"
+                    state === "done" ? "bg-ok/50" : "bg-line"
                   }`}
                 />
               )}
@@ -71,20 +73,20 @@ export function Timeline({ mission }: { mission: Mission }) {
               </div>
               <div className="min-w-0">
                 <p
-                  className={`text-[13px] font-medium leading-5 ${
+                  className={`text-base font-medium leading-5 ${
                     state === "active"
-                      ? "text-sky-300"
+                      ? "text-accent"
                       : state === "done"
-                        ? "text-zinc-200"
+                        ? "text-ink"
                         : state === "failed"
-                          ? "text-red-300"
-                          : "text-zinc-600"
+                          ? "text-bad-deep"
+                          : "text-ink-tertiary"
                   }`}
                 >
                   {STAGE_LABELS[stage]}
                 </p>
                 {summary && state !== "pending" && (
-                  <p className="mt-0.5 truncate text-[11px] leading-4 text-zinc-500" title={summary}>
+                  <p className="mt-0.5 truncate text-xs leading-4 text-ink-secondary" title={summary}>
                     {summary}
                   </p>
                 )}
