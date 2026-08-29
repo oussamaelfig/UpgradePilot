@@ -11,6 +11,10 @@
    `openai==0.28.1`).
 4. Fresh mission state: stop the server, delete `mission-control/server/data/`, restart.
 5. Two windows side by side: left = TrueForge chat, right = Mission Control dashboard.
+6. Keep the TrueForge terminal log visible (a strip under the chat works): it is where the
+   deferred-tools moment (44 GitHub tool schemas loaded only on first use, not up front) and
+   the offloading moment (large scraped docs written to sandbox files, preview in context)
+   actually show up.
 
 ## The run
 
@@ -36,10 +40,13 @@ Narration beats (the dashboard drives itself):
 4. **Verification goes green** — "Migration applied, full test suite re-run, plus a
    deterministic scan for leftover legacy calls: 13/13 pass, zero legacy sites. No LLM claims —
    exit codes."
-5. **Approval modal** — "And here it stops. The exact action, the evidence, and a human
+5. **The refresh** (10 seconds) — hard-refresh the TrueForge tab AND the dashboard tab, mid-run:
+   both come back exactly where they were. "The harness keeps the run alive server-side; the
+   dashboard replays from its event log."
+6. **Approval modal** — "And here it stops. The exact action, the evidence, and a human
    decision. The harness enforces this too: GitHub write tools are approval-gated at the tool
    boundary." → Click **Approve** (+ approve the harness card in TrueForge).
-6. **PR card** — open the real PR on GitHub: verified changes, evidence, doc links. "From
+7. **PR card** — open the real PR on GitHub: verified changes, evidence, doc links. "From
    breaking change to verified PR."
 
 ## Drift-recovery encore (30s, if asked about Bright Data)
@@ -59,3 +66,30 @@ only the trigger is simulated.
 
 Stop server → `rm -rf mission-control/server/data` → start server → close/delete the briefbot
 PR and branch → new TrueForge session.
+
+## Judge-question cheat sheet
+
+- **"Does it only do OpenAI migrations?"** — The architecture is registry + playbook.
+  `skills/release-intel/sources.yaml` registers documentation sources, a publisher allowlist,
+  and a recovery query *per package*; `openai-v1-migration` is one migration playbook.
+  Supporting a new dependency means registering its sources and adding its playbook skill —
+  the agent, mission protocol, approval model, and dashboard are unchanged.
+- **"What happens if the human rejects?"** — `await_approval` returns `rejected`; the agent
+  reports the stage failed, summarizes state, and stops — no retry, by instruction. Belt and
+  braces: a rejected approval can never record a PR (regression-tested in
+  `mission-control/server/test/mission.test.ts`), and GitHub write tools are still gated by
+  TrueForge's native approval even for a misbehaving agent.
+- **"What if the docs site breaks?"** — Drift recovery is designed in: fall through the ordered
+  sources in `sources.yaml`, then `search_engine` with the registered recovery query, keeping
+  only results whose URL matches the publisher allowlist. The dashboard shows the drift warning
+  and a `RECOVERED SOURCE` badge — run the encore ("simulate documentation drift"); the
+  recovery fetch is real, only the trigger is simulated.
+- **"Why should I trust the test numbers?"** — They are not model claims. Every reported number
+  must come from executed command output (pytest exit codes plus a deterministic legacy-pattern
+  scan), log excerpts are copied verbatim, and every report crosses Mission Control's zod trust
+  boundary, which rejects malformed payloads with structured errors.
+- **"Why is the dashboard an MCP server?"** — It makes the UI harness-native: the agent reports
+  evidence through ordinary tool calls, so it works with any MCP client and scrapes no harness
+  internals. It also puts the approval state machine behind a tested trust boundary — one
+  decision per approval, the recorded PR must match the approved action (branch + repository),
+  and an approval from one mission can never satisfy another.

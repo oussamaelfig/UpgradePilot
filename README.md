@@ -86,8 +86,9 @@ flowchart TD
 
 - **TrueForge** runs the whole loop: the agent, two parallel **dynamic subagents** with isolated
   contexts (Release Intelligence, Repo Investigator), **sandbox-as-tool** execution on Daytona,
-  git-backed **skills** with progressive disclosure, persistent sessions, and **native tool
-  approval** on GitHub write tools — the harness itself pauses before anything irreversible.
+  git-backed **skills** with progressive disclosure, automatic context engineering, persistent
+  sessions, and **native tool approval** on GitHub write tools — the harness itself pauses
+  before anything irreversible. The capability map below makes each of these provable.
 - **Bright Data MCP** feeds the agent live official migration documentation
   (`scrape_as_markdown`, `search_engine`). The pipeline is declarative and version-controlled:
   [`skills/release-intel/sources.yaml`](skills/release-intel/sources.yaml) registers sources, a
@@ -101,6 +102,41 @@ flowchart TD
   the real world is the approval-gated GitHub MCP.
 - **OpenAI** is the model layer for the agent and both subagents.
 - **Qodo** reviewed every PR in this repository — see the evidence below.
+
+### TrueForge capability map
+
+There is no orchestration script in this repository — TrueForge *is* the orchestrator. One row
+per harness capability: what it does in this project, and where a judge can verify it.
+
+| Harness capability | How UpgradePilot uses it | Where to see the proof |
+| --- | --- | --- |
+| Agent loop + model | The entire mission — discovery → sandbox → approval → PR — is a single TrueForge run of the `upgradepilot` agent on `openai/gpt-5.2` | [`agent/upgradepilot.agent.md`](agent/upgradepilot.agent.md) (the full system prompt), [`agent/setup.md`](agent/setup.md); the session header in TrueForge during the run |
+| Three MCP connectors | `brightdata` (live official migration docs), `github` (44 tools — the only path to the real world), `mission-control` (our own 11-tool MCP server; the dashboard is harness-native, no internals scraped) | Connector table in [`agent/setup.md`](agent/setup.md); tool registry in [`mission-control/server/src/mcp.ts`](mission-control/server/src/mcp.ts); the dashboard filling itself in real time |
+| Sandbox-as-tool (Daytona) | Clone, venv, installs, baseline reproduction (**9 failed / 1 error**, `APIRemovedInV1`), migration edits, verification (**13/13** + legacy scan **0**) — all in a credential-free sandbox | Sandbox protocol in [`skills/openai-v1-migration/SKILL.md`](skills/openai-v1-migration/SKILL.md); baseline/verification cards on the dashboard; the [produced PR](https://github.com/oussamaelfig/briefbot/pull/2) body |
+| Dynamic subagents | Release Intelligence + Repo Investigator fan out in parallel with isolated contexts; only their results return to the root agent's context | Mission protocol step 2 in [`agent/upgradepilot.agent.md`](agent/upgradepilot.agent.md); both subagents in the dashboard activity feed and the TrueForge session view |
+| Git-backed skills, progressive disclosure | `release-intel` and `openai-v1-migration` load from this repository (ref `main`); only name + description sit in the input context, bodies are read from the sandbox on demand | Frontmatter of [`skills/release-intel/SKILL.md`](skills/release-intel/SKILL.md) and [`skills/openai-v1-migration/SKILL.md`](skills/openai-v1-migration/SKILL.md); skill registration in [`agent/setup.md`](agent/setup.md) §4 |
+| Native tool approval | GitHub write tools carry `require_approval_for_tools: ["@write", "@destructive"]` — the harness pauses before any mutation, *on top of* Mission Control's approval state machine (single decision, action matching) | [`agent/setup.md`](agent/setup.md) §3; guards in [`mission-control/server/src/mission.ts`](mission-control/server/src/mission.ts); regression tests in [`mission-control/server/test/mission.test.ts`](mission-control/server/test/mission.test.ts); both approval moments in the demo |
+| Context engineering, automatic | Deferred tool loading (`preload: false` default) keeps all 44 GitHub tool schemas out of context until first use; large scrape responses are offloaded to sandbox files with a preview in context; compaction enabled | TrueForge terminal log during the run — tool-loading and offload lines (see "What to watch" below) |
+| Persistent sessions | TrueForge sessions are SQLite-backed and survive page reloads/reconnects; Mission Control state survives server restarts (atomic-write JSON snapshot) and the dashboard reconnects via SSE seq replay with an explicit `replay_gap` protocol | The mid-run refresh in the demo; `save`/`load`/`replayGap` in [`mission-control/server/src/mission.ts`](mission-control/server/src/mission.ts); SSE replay-gap tests in [`mission-control/server/test/routes.test.ts`](mission-control/server/test/routes.test.ts) |
+
+#### What to watch during the demo
+
+Five observable harness moments, in run order:
+
+1. **Parallel fan-out** — right after the mission starts, *two* subagents appear at once;
+   the dashboard activity feed and the TrueForge session show Release Intelligence and the
+   Repo Investigator running concurrently.
+2. **Deferred tools** — the GitHub connector exposes 44 tools, but TrueForge keeps their
+   schemas out of the context window until first use; watch the tool-loading lines in the
+   TrueForge terminal log.
+3. **Response offloading** — the scraped migration guide is large; TrueForge writes it to a
+   sandbox file and keeps only a preview in context. Also visible in the terminal log.
+4. **The mid-run refresh** — hard-reload the TrueForge tab *and* the dashboard tab while the
+   run is live: the session comes back server-side and the dashboard replays its event log.
+   Nothing is lost.
+5. **Defense in depth at the approval** — after the human approves on Mission Control,
+   TrueForge's *native* approval card appears for the GitHub write tools. Two independent
+   gates, both real; the agent cannot talk its way around the harness one.
 
 ### Mission Control (this repository's code)
 
