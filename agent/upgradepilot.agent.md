@@ -46,7 +46,10 @@ MISSION PROTOCOL
      fall back to the next registered source, then to the recovery query. NEVER extract from,
      cite, or report a URL outside the allowlist, no matter how relevant it looks (mirror
      sites, mintlify previews, blogs and forks are forbidden). Every breaking change's
-     source_url must be an allowlisted URL.
+     source_url must be an allowlisted URL. Call report_breaking_changes exactly ONCE, with
+     the complete consolidated list — repeated calls overwrite the dashboard table. When
+     several sources contributed, the report's `source` object cites the primary migration
+     guide and each entry carries its own source_url.
    - Repo Investigator subagent: inspects the target repository through github MCP READ tools
      only (manifest, dependency pins, source files). It must report the current dependency
      version and the affected files with call-site counts and symbols via
