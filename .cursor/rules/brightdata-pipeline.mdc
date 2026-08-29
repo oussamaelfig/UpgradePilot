@@ -29,6 +29,19 @@ For the `openai-python 0.28 → 1.x` migration the registered sources, in priori
 2. `https://raw.githubusercontent.com/openai/openai-python/main/README.md` — current API surface
 3. `search_engine` query: `openai python v1 migration guide site:github.com` — recovery path
 
+## Allowed publishers (authenticity allowlist)
+
+Migration guidance may ONLY be extracted from URLs owned by the dependency's publisher. For
+openai-python that means URL prefixes:
+
+- `https://github.com/openai/`
+- `https://raw.githubusercontent.com/openai/`
+- `https://platform.openai.com/`
+
+Shared hosting domains (github.com, raw.githubusercontent.com) do not establish authenticity by
+themselves — the owner segment must match the allowlist. Recovery search results that do not
+match an allowed prefix are discarded, no matter their ranking.
+
 ## Extraction contract
 
 Scraped markdown is extracted into JSON that MUST validate against
@@ -42,6 +55,7 @@ extractions are rejected and must be re-extracted, not patched by hand.
 2. If the scrape fails, returns thin/empty content, or extraction fails validation → the page
    has drifted: fall back to the next registered source and re-extract.
 3. If all registered URLs fail → `search_engine` with the registered recovery query, pick the
-   top official-domain result, scrape, re-extract.
+   top result whose URL matches the publisher allowlist above (never merely the top result on a
+   shared hosting domain), scrape, re-extract.
 4. Always record which source ultimately fed the migration (`source_recovered` event to Mission
    Control) so the UI shows data provenance.
