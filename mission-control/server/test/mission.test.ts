@@ -173,6 +173,19 @@ describe("persistence", () => {
     expect(reloaded.lastSeq()).toBe(store.lastSeq());
   });
 
+  it("never half-loads a structurally invalid snapshot", () => {
+    // Regression test for a review finding: a parseable snapshot whose fields
+    // are invalid (active mission pointing nowhere, missions non-iterable)
+    // must not leave partial state like hasActiveMission() === true.
+    const dir = mkdtempSync(join(tmpdir(), "mc-invalid-"));
+    const file = join(dir, "state.json");
+    writeFileSync(file, JSON.stringify({ seq: 9, activeMissionId: "missing", missions: "not-a-list", events: [] }));
+
+    const store = new MissionStore(file);
+    expect(store.hasActiveMission()).toBe(false);
+    expect(() => store.activeMission()).toThrowError(/no active mission/);
+  });
+
   it("backs up a corrupt state file instead of silently discarding it", () => {
     // Regression test for a review finding: read/parse failures must be
     // reported and the unreadable snapshot preserved for inspection.

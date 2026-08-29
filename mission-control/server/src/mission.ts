@@ -328,11 +328,25 @@ export class MissionStore {
   private load(path: string): void {
     if (!existsSync(path)) return; // first boot
     try {
+      // Parse and validate into locals first; commit to instance fields only
+      // when the whole snapshot processed cleanly, so a partial failure can
+      // never leave half-loaded state behind.
       const state = JSON.parse(readFileSync(path, "utf-8"));
-      this.seq = state.seq ?? 0;
-      this.activeMissionId = state.activeMissionId ?? null;
-      this.events = state.events ?? [];
-      for (const mission of state.missions ?? []) this.missions.set(mission.id, mission);
+      const seq = typeof state.seq === "number" ? state.seq : 0;
+      const events = Array.isArray(state.events) ? state.events : [];
+      const missions = new Map<string, Mission>();
+      for (const mission of Array.isArray(state.missions) ? state.missions : []) {
+        missions.set(mission.id, mission);
+      }
+      const activeMissionId =
+        typeof state.activeMissionId === "string" && missions.has(state.activeMissionId)
+          ? state.activeMissionId
+          : null;
+
+      this.seq = seq;
+      this.events = events;
+      this.missions = missions;
+      this.activeMissionId = activeMissionId;
     } catch (error) {
       // Never silently discard state: preserve the unreadable snapshot for
       // inspection and report the failure, then start clean.

@@ -71,13 +71,20 @@ export function buildRouter(store: MissionStore, options: { mcpToken?: string } 
       res.write(`id: ${event.seq}\nevent: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`);
     };
 
-    // If the client's requested position predates the retained window (history
-    // is capped in persistence), say so explicitly instead of silently serving
-    // an incomplete suffix; clients should refetch the snapshot.
+    // If the client's requested position falls outside the retained window —
+    // older than capped history, or newer than the store's own sequence (the
+    // store was reset or replaced) — say so explicitly instead of silently
+    // serving an incomplete suffix; clients should refetch the snapshot.
     const oldest = store.oldestAvailableSeq();
-    if (since > 0 && oldest !== null && since < oldest - 1) {
+    const behindWindow = since > 0 && oldest !== null && since < oldest - 1;
+    const aheadOfStore = since > store.lastSeq();
+    if (behindWindow || aheadOfStore) {
       res.write(
-        `event: replay_gap\ndata: ${JSON.stringify({ requested_since: since, oldest_available: oldest })}\n\n`,
+        `event: replay_gap\ndata: ${JSON.stringify({
+          requested_since: since,
+          oldest_available: oldest,
+          last_seq: store.lastSeq(),
+        })}\n\n`,
       );
     }
 
