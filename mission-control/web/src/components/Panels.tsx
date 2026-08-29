@@ -1,84 +1,131 @@
 import type { Mission, TestRun } from "../types";
+import { ConsoleIcon, type ConsoleIconName } from "./ConsoleIcons";
 
 export function Panel({
+  id,
   title,
+  icon,
   badge,
   children,
+  className = "",
+  bodyClassName = "p-3",
 }: {
+  id?: string;
   title: string;
+  icon?: ConsoleIconName;
   badge?: React.ReactNode;
   children: React.ReactNode;
+  className?: string;
+  bodyClassName?: string;
 }) {
   return (
-    <section className="panel-enter rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <h2 className="text-[11px] font-semibold uppercase tracking-widest text-zinc-500">{title}</h2>
+    <section
+      id={id}
+      className={`panel-enter scroll-mt-24 overflow-hidden rounded-[10px] border border-console-line bg-console-panel ${className}`}
+    >
+      <div className="flex h-10 items-center justify-between gap-3 border-b border-console-line px-3">
+        <h2 className="flex min-w-0 items-center gap-2 text-sm font-medium text-console-text">
+          {icon && <ConsoleIcon name={icon} size={15} className="shrink-0 text-console-muted" />}
+          <span className="truncate">{title}</span>
+        </h2>
         {badge}
       </div>
-      {children}
+      <div className={bodyClassName}>{children}</div>
     </section>
   );
 }
 
 const CHANGE_TYPE_STYLES: Record<string, string> = {
-  removed: "bg-red-500/15 text-red-300",
-  renamed: "bg-amber-500/15 text-amber-300",
-  signature_changed: "bg-violet-500/15 text-violet-300",
-  config_changed: "bg-sky-500/15 text-sky-300",
-  behavior_changed: "bg-orange-500/15 text-orange-300",
+  removed: "border-console-danger/20 bg-console-danger-bg text-console-danger",
+  renamed: "border-console-warning/20 bg-console-warning-bg text-console-warning",
+  signature_changed: "border-console-info/20 bg-console-info-bg text-console-info",
+  config_changed: "border-console-info/20 bg-console-info-bg text-console-info",
+  behavior_changed: "border-console-warning/20 bg-console-warning-bg text-console-warning",
 };
+
+function CountBadge({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="rounded-md border border-console-line bg-console-subtle px-1.5 py-0.5 font-mono text-[10px] text-console-muted">
+      {children}
+    </span>
+  );
+}
 
 export function BreakingChangesPanel({ mission }: { mission: Mission }) {
   const data = mission.breaking_changes;
   if (!data) return null;
+
   return (
     <Panel
-      title={`Breaking changes (${data.breaking_changes.length})`}
-      badge={
+      id="breaking-changes"
+      title="Breaking changes"
+      icon="changes"
+      badge={<CountBadge>{data.breaking_changes.length}</CountBadge>}
+      bodyClassName="p-0"
+    >
+      <div className="flex min-w-0 items-center justify-between gap-3 border-b border-console-line px-3 py-2">
+        <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-console-faint">
+          Publisher source
+        </span>
         <a
           href={data.source.url}
           target="_blank"
           rel="noreferrer"
-          className="flex items-center gap-1.5 text-[11px] text-zinc-400 hover:text-sky-300"
+          className="inline-flex min-w-0 items-center gap-1.5 text-xs text-console-muted hover:text-console-text hover:underline hover:underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-console-text/70"
           title={data.source.title}
         >
           {data.source.recovered && (
-            <span className="rounded bg-amber-500/15 px-1.5 py-0.5 font-semibold text-amber-300">
-              RECOVERED SOURCE
+            <span className="shrink-0 rounded border border-console-warning/20 bg-console-warning-bg px-1.5 py-0.5 font-mono text-[9px] uppercase text-console-warning">
+              recovered
             </span>
           )}
-          <span className="max-w-56 truncate">{data.source.title}</span>
-          <svg viewBox="0 0 12 12" className="h-3 w-3 fill-none stroke-current">
-            <path d="M4 2h6v6M10 2 5 7" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
+          <span className="max-w-64 truncate">{data.source.title}</span>
+          <ConsoleIcon name="external" size={12} className="shrink-0" />
         </a>
-      }
-    >
+      </div>
       <div className="overflow-x-auto">
-        <table className="w-full text-left text-[12px]">
-          <thead>
-            <tr className="text-[10px] uppercase tracking-wider text-zinc-600">
-              <th className="pb-2 pr-4 font-medium">Symbol</th>
-              <th className="pb-2 pr-4 font-medium">Type</th>
-              <th className="pb-2 pr-4 font-medium">Before</th>
-              <th className="pb-2 font-medium">After</th>
+        <table className="w-full min-w-[580px] table-fixed text-left text-xs">
+          <thead className="bg-console-table-head">
+            <tr className="font-mono text-[10px] uppercase tracking-[0.08em] text-console-faint">
+              <th scope="col" className="w-[30%] px-3 py-2 font-normal">
+                Symbol
+              </th>
+              <th scope="col" className="w-[20%] px-3 py-2 font-normal">
+                Type
+              </th>
+              <th scope="col" className="px-3 py-2 font-normal">
+                Required migration
+              </th>
             </tr>
           </thead>
-          <tbody className="align-top">
-            {data.breaking_changes.map((change, i) => (
-              <tr key={i} className="border-t border-zinc-800/70">
-                <td className="py-2 pr-4 font-mono text-zinc-200">{change.symbol}</td>
-                <td className="py-2 pr-4">
+          <tbody>
+            {data.breaking_changes.map((change, index) => (
+              <tr key={`${change.symbol}-${index}`} className="group border-t border-console-line">
+                <td className="px-3 py-2 align-top font-mono text-console-text">{change.symbol}</td>
+                <td className="px-3 py-2 align-top">
                   <span
-                    className={`rounded px-1.5 py-0.5 font-mono text-[10px] ${
-                      CHANGE_TYPE_STYLES[change.change_type] ?? "bg-zinc-700/40 text-zinc-300"
+                    className={`inline-flex rounded border px-1.5 py-0.5 font-mono text-[9px] ${
+                      CHANGE_TYPE_STYLES[change.change_type] ??
+                      "border-console-line bg-console-subtle text-console-muted"
                     }`}
                   >
                     {change.change_type}
                   </span>
                 </td>
-                <td className="py-2 pr-4 font-mono text-red-300/90">{change.before}</td>
-                <td className="py-2 font-mono text-emerald-300/90">{change.after}</td>
+                <td className="px-3 py-2 align-top font-mono text-[10px] leading-4">
+                  <span className="block truncate text-console-danger/90" title={change.before}>
+                    <span className="mr-1 text-console-faint" aria-hidden="true">
+                      −
+                    </span>
+                    {change.before}
+                  </span>
+                  <span className="block truncate text-console-success" title={change.after}>
+                    <span className="mr-1 text-console-faint" aria-hidden="true">
+                      +
+                    </span>
+                    {change.after}
+                  </span>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -91,27 +138,44 @@ export function BreakingChangesPanel({ mission }: { mission: Mission }) {
 export function AffectedFilesPanel({ mission }: { mission: Mission }) {
   const data = mission.repo_analysis;
   if (!data) return null;
-  const totalSites = data.affected_files.reduce((sum, f) => sum + f.call_sites, 0);
+  const totalSites = data.affected_files.reduce((sum, file) => sum + file.call_sites, 0);
+
   return (
     <Panel
-      title={`Affected files (${data.affected_files.length})`}
-      badge={<span className="font-mono text-[11px] text-zinc-500">{totalSites} call sites</span>}
+      id="affected-files"
+      title="Affected files"
+      icon="impact"
+      badge={<CountBadge>{totalSites} call sites</CountBadge>}
+      bodyClassName="p-0"
     >
-      <ul className="space-y-1.5">
-        {data.affected_files.map((file) => (
-          <li key={file.path} className="flex items-center justify-between gap-3 text-[12px]">
-            <span className="truncate font-mono text-zinc-300">{file.path}</span>
-            <span className="flex shrink-0 items-center gap-2">
-              <span className="hidden max-w-64 truncate font-mono text-[10px] text-zinc-600 md:inline">
-                {file.symbols.join(", ")}
-              </span>
-              <span className="rounded bg-zinc-800 px-1.5 py-0.5 font-mono text-[10px] text-zinc-400">
-                {file.call_sites}
-              </span>
-            </span>
-          </li>
-        ))}
-      </ul>
+      <table className="w-full table-fixed text-left text-xs">
+        <thead className="sr-only">
+          <tr>
+            <th scope="col">File</th>
+            <th scope="col">Call sites</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.affected_files.map((file) => (
+            <tr key={file.path} className="border-b border-console-line last:border-b-0">
+              <td className="min-w-0 px-3 py-2">
+                <span
+                  className="block truncate font-mono text-console-text"
+                  title={`${file.path} — ${file.symbols.join(", ")}`}
+                >
+                  {file.path}
+                </span>
+                <span className="sr-only">
+                  {file.symbols.join(", ")}
+                </span>
+              </td>
+              <td className="w-12 px-3 py-2 text-right">
+                <CountBadge>{file.call_sites}</CountBadge>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </Panel>
   );
 }
@@ -126,175 +190,306 @@ function TestRunCard({
   packageName: string;
 }) {
   const failedTotal = run.failed + run.errors;
-  const good = kind === "verification" && failedTotal === 0 && run.exit_code === 0;
-  const accent = good ? "emerald" : failedTotal > 0 ? "red" : "zinc";
+  const verified = kind === "verification" && failedTotal === 0 && run.exit_code === 0;
+  const tone =
+    verified
+      ? {
+          border: "border-console-success/25",
+          surface: "bg-console-success-bg/45",
+          text: "text-console-success",
+          dot: "bg-console-success",
+          label: "Verified",
+        }
+      : failedTotal > 0
+        ? {
+            border: "border-console-danger/25",
+            surface: "bg-console-danger-bg/45",
+            text: "text-console-danger",
+            dot: "bg-console-danger",
+            label: "Failure reproduced",
+          }
+        : {
+            border: "border-console-line",
+            surface: "bg-console-panel-alt",
+            text: "text-console-text",
+            dot: "bg-console-muted",
+            label: "Completed",
+          };
+
   return (
-    <div
-      className={`rounded-lg border p-3 ${
-        accent === "emerald"
-          ? "border-emerald-500/30 bg-emerald-500/5"
-          : accent === "red"
-            ? "border-red-500/30 bg-red-500/5"
-            : "border-zinc-800 bg-zinc-900/60"
-      }`}
-    >
-      <div className="mb-2 flex items-center justify-between">
-        <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">
+    <article className={`min-w-0 overflow-hidden rounded-lg border ${tone.border} ${tone.surface}`}>
+      <div className="flex items-center justify-between gap-2 border-b border-console-line px-3 py-2">
+        <span className="inline-flex items-center gap-2 text-xs font-medium text-console-text">
+          <span className={`h-1.5 w-1.5 rounded-full ${tone.dot}`} aria-hidden="true" />
           {kind === "baseline" ? "Before migration" : "After migration"}
         </span>
-        <span className="rounded bg-zinc-800/80 px-1.5 py-0.5 font-mono text-[10px] text-zinc-400">
+        <span className="rounded border border-console-line bg-console-panel px-1.5 py-0.5 font-mono text-[9px] text-console-muted">
           {packageName} {run.installed_version}
         </span>
       </div>
-      <div className="mb-2 flex items-end gap-4">
-        <div>
-          <p className={`font-mono text-2xl font-bold leading-7 ${good ? "text-emerald-300" : failedTotal > 0 ? "text-red-300" : "text-zinc-200"}`}>
-            {failedTotal > 0 ? `${failedTotal} failing` : `${run.passed}/${run.total} pass`}
-          </p>
-          <p className="font-mono text-[11px] text-zinc-500">
-            {run.passed} passed · {run.failed} failed · {run.errors} errors
-          </p>
-        </div>
-        {typeof run.legacy_patterns_remaining === "number" && (
-          <div className="ml-auto text-right">
-            <p className={`font-mono text-2xl font-bold leading-7 ${run.legacy_patterns_remaining === 0 ? "text-emerald-300" : "text-red-300"}`}>
-              {run.legacy_patterns_remaining}
+
+      <div className="px-3 pb-2.5 pt-2">
+        <div className="flex items-end justify-between gap-3">
+          <div>
+            <p className={`font-mono text-lg font-semibold tracking-tight ${tone.text}`}>
+              {failedTotal > 0 ? `${failedTotal} failing` : `${run.passed}/${run.total} pass`}
             </p>
-            <p className="text-[10px] text-zinc-500">legacy call sites left</p>
+            <p className="font-mono text-[9px] leading-4 text-console-faint">
+              {run.passed} passed · {run.failed} failed · {run.errors} errors
+            </p>
           </div>
-        )}
+          <span className={`rounded border ${tone.border} px-1.5 py-0.5 font-mono text-[9px] uppercase ${tone.text}`}>
+            {tone.label}
+          </span>
+        </div>
+
+        <dl className="mt-2 grid grid-cols-2 gap-px overflow-hidden rounded-md border border-console-line bg-console-line font-mono text-[9px]">
+          <div className="bg-console-panel px-2 py-1.5">
+            <dt className="text-console-faint">Exit code</dt>
+            <dd className={run.exit_code === 0 ? "text-console-success" : "text-console-danger"}>
+              {run.exit_code}
+            </dd>
+          </div>
+          <div className="bg-console-panel px-2 py-1.5">
+            <dt className="text-console-faint">Legacy sites</dt>
+            <dd
+              className={
+                run.legacy_patterns_remaining === 0 ? "text-console-success" : "text-console-text"
+              }
+            >
+              {typeof run.legacy_patterns_remaining === "number" ? run.legacy_patterns_remaining : "—"}
+            </dd>
+          </div>
+        </dl>
+
+        <div className="mt-2 overflow-hidden rounded-md border border-console-line bg-console-code">
+          <div className="flex items-center gap-2 border-b border-console-line px-2 py-1 font-mono text-[9px] text-console-faint">
+            <ConsoleIcon name="tool" size={11} />
+            <span className="truncate" title={run.command}>
+              {run.command}
+            </span>
+          </div>
+          <pre className="max-h-16 overflow-auto whitespace-pre-wrap px-2 py-1.5 font-mono text-[9px] leading-[13px] text-console-muted">
+            {run.log_excerpt}
+          </pre>
+        </div>
       </div>
-      <div className="rounded-md bg-zinc-950/80 p-2 ring-1 ring-zinc-800">
-        <p className="mb-1 font-mono text-[10px] text-zinc-600">$ {run.command} · exit {run.exit_code}</p>
-        <pre className="max-h-24 overflow-auto whitespace-pre-wrap font-mono text-[10px] leading-4 text-zinc-400">
-          {run.log_excerpt}
-        </pre>
-      </div>
-    </div>
+    </article>
+  );
+}
+
+/** One success predicate for "verified" wording: clean exit, zero failures
+ *  and errors, and an explicit legacy-scan result of zero remaining sites.
+ *  A missing scan count is not evidence — the verification gate is
+ *  `legacy_patterns_remaining == 0`, demonstrated, not assumed. */
+export function verificationClean(run: TestRun | undefined): boolean {
+  return (
+    !!run &&
+    run.exit_code === 0 &&
+    run.failed + run.errors === 0 &&
+    run.legacy_patterns_remaining === 0
   );
 }
 
 export function BeforeAfterPanel({ mission }: { mission: Mission }) {
   if (!mission.baseline && !mission.verification) return null;
-  // The dependency's bare name for evidence labels (mission.package may carry
-  // an ecosystem suffix like "openai (Python)").
   const packageName = mission.package.split(" ")[0] ?? mission.package;
+
   return (
-    <Panel title="Sandbox evidence — before / after">
-      <div className="grid gap-3 lg:grid-cols-2">
+    <Panel
+      id="evidence"
+      title="Deterministic test evidence"
+      icon="evidence"
+      badge={
+        verificationClean(mission.verification) ? (
+          <span className="inline-flex items-center gap-1 rounded border border-console-success/20 bg-console-success-bg px-1.5 py-0.5 font-mono text-[9px] uppercase text-console-success">
+            <ConsoleIcon name="check" size={10} />
+            verified
+          </span>
+        ) : undefined
+      }
+    >
+      <div className="grid gap-2 min-[1180px]:grid-cols-2">
         {mission.baseline ? (
           <TestRunCard run={mission.baseline} kind="baseline" packageName={packageName} />
         ) : (
-          <div className="rounded-lg border border-dashed border-zinc-800 p-6 text-center text-[11px] text-zinc-600">
-            baseline pending
-          </div>
+          <EvidencePending label="Baseline pending" />
         )}
         {mission.verification ? (
           <TestRunCard run={mission.verification} kind="verification" packageName={packageName} />
         ) : (
-          <div className="rounded-lg border border-dashed border-zinc-800 p-6 text-center text-[11px] text-zinc-600">
-            verification pending
-          </div>
+          <EvidencePending label="Verification pending" />
         )}
       </div>
     </Panel>
   );
 }
 
+function EvidencePending({ label }: { label: string }) {
+  return (
+    <div className="flex min-h-36 items-center justify-center rounded-lg border border-dashed border-console-line bg-console-panel-alt p-6 text-xs text-console-faint">
+      {label}
+    </div>
+  );
+}
+
 const ACTION_STYLES: Record<string, string> = {
-  modify: "bg-amber-500/15 text-amber-300",
-  create: "bg-emerald-500/15 text-emerald-300",
-  delete: "bg-red-500/15 text-red-300",
+  modify: "border-console-warning/20 bg-console-warning-bg text-console-warning",
+  create: "border-console-success/20 bg-console-success-bg text-console-success",
+  delete: "border-console-danger/20 bg-console-danger-bg text-console-danger",
 };
 
 export function MigrationPlanPanel({ mission }: { mission: Mission }) {
   const plan = mission.migration_plan;
   if (!plan) return null;
+
   return (
-    <Panel title={`Migration change set (${plan.files.length} files)`}>
-      <ul className="space-y-1.5">
-        {plan.files.map((file) => (
-          <li key={file.path} className="flex items-start gap-2 text-[12px]">
-            <span className={`mt-0.5 shrink-0 rounded px-1.5 py-0.5 font-mono text-[10px] ${ACTION_STYLES[file.action]}`}>
-              {file.action}
-            </span>
-            <span className="shrink-0 font-mono text-zinc-300">{file.path}</span>
-            <span className="truncate text-zinc-500" title={file.summary}>
-              — {file.summary}
-            </span>
-          </li>
-        ))}
-      </ul>
-      {plan.notes && <p className="mt-3 border-t border-zinc-800/70 pt-2 text-[11px] leading-5 text-zinc-500">{plan.notes}</p>}
+    <Panel
+      id="migration-plan"
+      title="Migration changes"
+      icon="file"
+      badge={<CountBadge>{plan.files.length} files</CountBadge>}
+      bodyClassName="p-0"
+    >
+      <table className="w-full table-fixed text-left text-xs">
+        <thead className="sr-only">
+          <tr>
+            <th scope="col">Action</th>
+            <th scope="col">File and summary</th>
+          </tr>
+        </thead>
+        <tbody>
+          {plan.files.map((file) => (
+            <tr key={file.path} className="border-b border-console-line last:border-b-0">
+              <td className="w-[68px] px-3 py-2 align-top">
+                <span
+                  className={`inline-flex rounded border px-1.5 py-0.5 font-mono text-[9px] ${ACTION_STYLES[file.action]}`}
+                >
+                  {file.action}
+                </span>
+              </td>
+              <td className="min-w-0 py-2 pr-3">
+                <span
+                  className="block truncate font-mono text-console-text"
+                  title={`${file.path} — ${file.summary}`}
+                >
+                  {file.path}
+                  <span className="font-sans text-console-faint"> — {file.summary}</span>
+                </span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {plan.notes && (
+        <p className="border-t border-console-line px-3 py-2 text-[10px] leading-4 text-console-muted">
+          {plan.notes}
+        </p>
+      )}
     </Panel>
   );
 }
 
-const ACTIVITY_ICONS: Record<string, string> = {
-  info: "·",
-  subagent: "⑂",
-  tool: "⚙",
-  warning: "!",
-  recovery: "↻",
+const ACTIVITY_ICONS: Record<string, ConsoleIconName> = {
+  info: "info",
+  subagent: "agent",
+  tool: "tool",
+  warning: "warning",
+  recovery: "changes",
 };
 
-export function ActivityFeed({ mission }: { mission: Mission }) {
+const ACTIVITY_STYLES: Record<string, string> = {
+  warning: "text-console-warning",
+  recovery: "text-console-success",
+  subagent: "text-console-info",
+  tool: "text-console-muted",
+  info: "text-console-faint",
+};
+
+const FEED_BADGE: Record<string, { className: string; dot: string; label: string }> = {
+  live: { className: "text-console-success", dot: "bg-console-success", label: "streaming" },
+  connecting: { className: "text-console-faint", dot: "bg-console-muted", label: "connecting" },
+  reconnecting: { className: "text-console-warning", dot: "bg-console-warning", label: "reconnecting" },
+};
+
+export function ActivityFeed({ mission, connection }: { mission: Mission; connection: string }) {
   if (mission.activity.length === 0) return null;
   const items = [...mission.activity].slice(-30).reverse();
+  const badge = FEED_BADGE[connection] ?? FEED_BADGE.reconnecting;
+
   return (
-    <Panel title="Agent activity">
-      <ul className="max-h-64 space-y-1 overflow-y-auto pr-1">
-        {items.map((item, i) => (
-          <li key={`${item.ts}-${i}`} className="flex items-baseline gap-2 text-[11px] leading-5">
-            <span
-              className={`w-3 shrink-0 text-center font-mono ${
-                item.kind === "warning"
-                  ? "text-amber-400"
-                  : item.kind === "recovery"
-                    ? "text-emerald-400"
-                    : item.kind === "subagent"
-                      ? "text-violet-400"
-                      : "text-zinc-600"
-              }`}
-            >
-              {ACTIVITY_ICONS[item.kind] ?? "·"}
+    <Panel
+      id="activity"
+      title="Agent activity"
+      icon="activity"
+      badge={
+        <span className={`inline-flex items-center gap-1.5 font-mono text-[9px] uppercase ${badge.className}`}>
+          <span className={`h-1.5 w-1.5 rounded-full ${badge.dot}`} aria-hidden="true" />
+          {badge.label}
+        </span>
+      }
+      bodyClassName="p-0"
+    >
+      <ol className="max-h-40 overflow-y-auto">
+        {items.map((item, index) => (
+          <li
+            key={`${item.ts}-${index}`}
+            className="grid grid-cols-[16px_46px_1fr] gap-2 border-b border-console-line px-3 py-2 text-[10px] leading-4 last:border-b-0"
+          >
+            <ConsoleIcon
+              name={ACTIVITY_ICONS[item.kind] ?? "info"}
+              size={13}
+              className={`mt-0.5 ${ACTIVITY_STYLES[item.kind] ?? "text-console-faint"}`}
+            />
+            <time dateTime={item.ts} className="font-mono text-console-faint">
+              {new Date(item.ts).toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+                hour12: false,
+              })}
+            </time>
+            <span className={item.kind === "warning" ? "text-console-warning" : "text-console-muted"}>
+              {item.message}
             </span>
-            <span className="shrink-0 font-mono text-[10px] text-zinc-600">
-              {new Date(item.ts).toLocaleTimeString([], { hour12: false })}
-            </span>
-            <span className={item.kind === "warning" ? "text-amber-200/90" : "text-zinc-400"}>{item.message}</span>
           </li>
         ))}
-      </ul>
+      </ol>
     </Panel>
   );
 }
 
 export function PrCard({ mission }: { mission: Mission }) {
   if (!mission.pr) return null;
+
   return (
-    <section className="panel-enter rounded-xl border border-emerald-500/40 bg-gradient-to-br from-emerald-500/10 to-sky-500/5 p-5">
-      <div className="flex flex-wrap items-center gap-4">
-        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/20 ring-1 ring-emerald-400/50">
-          <svg viewBox="0 0 16 16" className="h-5 w-5 fill-emerald-300">
-            <path d="M5 3.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Zm0 2.122a2.25 2.25 0 1 0-1.5 0v5.256a2.251 2.251 0 1 0 1.5 0V5.372Zm-.75 7.878a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm7.5-2.872a2.25 2.25 0 1 0-1.5 0v.256a2.25 2.25 0 1 0 1.5 0v-.256ZM11 13.25a.75.75 0 1 1 1.5 0 .75.75 0 0 1-1.5 0Zm.75-9.5a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Z" />
-          </svg>
-        </div>
-        <div className="min-w-0">
-          <h2 className="text-[15px] font-semibold text-emerald-200">Migration PR opened</h2>
-          <p className="text-[12px] text-zinc-400">
-            branch <span className="font-mono text-zinc-300">{mission.pr.branch}</span> — verified changes, approved by a human
-          </p>
-        </div>
-        <a
-          href={mission.pr.pr_url}
-          target="_blank"
-          rel="noreferrer"
-          className="ml-auto rounded-lg bg-emerald-500 px-4 py-2 text-[13px] font-semibold text-emerald-950 transition hover:bg-emerald-400"
-        >
-          View pull request →
-        </a>
+    <section
+      aria-labelledby="pr-opened-title"
+      className="panel-enter flex flex-col gap-3 rounded-[10px] border border-console-success/25 bg-console-success-bg px-4 py-3 sm:flex-row sm:items-center"
+    >
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-console-success/25 bg-console-panel text-console-success">
+        <ConsoleIcon name="check" size={16} />
+      </span>
+      <div className="min-w-0 flex-1">
+        <h2 id="pr-opened-title" className="text-sm font-medium text-console-text">
+          Migration pull request opened
+        </h2>
+        <p className="truncate text-xs text-console-muted">
+          <span className="font-mono text-console-success">{mission.pr.branch}</span>
+          {" · "}
+          {verificationClean(mission.verification)
+            ? "verified and approved by a human"
+            : "approved by a human"}
+        </p>
       </div>
+      <a
+        href={mission.pr.pr_url}
+        target="_blank"
+        rel="noreferrer"
+        className="console-button console-button-primary"
+      >
+        View pull request
+        <ConsoleIcon name="external" size={13} />
+      </a>
     </section>
   );
 }
