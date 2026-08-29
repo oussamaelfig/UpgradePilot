@@ -1,2 +1,2 @@
-# patchpilot
-Autonomous vulnerability response agent that investigates CVEs, proves exploitability in a sandbox, generates and verifies patches, then asks for approval before opening a remediation PR.
+# UpgradePilot
+A dependency or API ships a breaking change. UpgradePilot reads the live release notes, finds what will break in your repo, reproduces the failure in a sandbox, migrates the code, proves the tests pass, then asks before opening the PR.
