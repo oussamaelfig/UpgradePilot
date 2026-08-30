@@ -2,6 +2,8 @@
 
 ### From breaking change to verified PR.
 
+**Live showcase:** [upgradepilot.vercel.app](https://upgradepilot.vercel.app) (real completed mission, static snapshot) · **Proof PR:** [briefbot#2](https://github.com/oussamaelfig/briefbot/pull/2) · **Demo video:** _linked on the submission_
+
 UpgradePilot is an autonomous dependency-migration agent built on the
 [TrueForge](https://github.com/truefoundry/trueforge) agent harness. Point it at a repository
 and an upgrade target:
@@ -119,6 +121,10 @@ per harness capability: what it does in this project, and where a judge can veri
 | Context engineering, automatic | Deferred tool loading (`preload: false` default) keeps all 44 GitHub tool schemas out of context until first use; large scrape responses are offloaded to sandbox files with a preview in context; compaction enabled | TrueForge terminal log during the run — tool-loading and offload lines (see "What to watch" below) |
 | Persistent sessions | TrueForge sessions are SQLite-backed and survive page reloads/reconnects; Mission Control state survives server restarts (atomic-write JSON snapshot) and the dashboard reconnects via SSE seq replay with an explicit `replay_gap` protocol | The mid-run refresh in the demo; `save`/`load`/`replayGap` in [`mission-control/server/src/mission.ts`](mission-control/server/src/mission.ts); SSE replay-gap tests in [`mission-control/server/test/routes.test.ts`](mission-control/server/test/routes.test.ts) |
 
+**Generality:** a second registry entry + playbook
+([Flask 2→3, PR #11](https://github.com/oussamaelfig/UpgradePilot/pull/11)) is in review — the
+product needed zero code changes.
+
 #### What to watch during the demo
 
 Five observable harness moments, in run order:
@@ -165,6 +171,11 @@ Defense in depth, both layers real:
 
 ## Running it
 
+The public site ([upgradepilot.vercel.app](https://upgradepilot.vercel.app)) is a **static
+showcase of a real completed run** — the SSE indicator shows reconnecting and the approval
+buttons are inert by design. The full live system runs locally per
+[`agent/setup.md`](agent/setup.md).
+
 Prereqs: Node 22+, a TrueForge instance (`npx @truefoundry/trueforge`), and API keys for
 OpenAI, Daytona, Bright Data, plus a fine-grained GitHub PAT (Contents + Pull requests,
 read/write) for the target repository.
@@ -184,7 +195,7 @@ open agent/setup.md
 Tests:
 
 ```bash
-cd mission-control && npm test        # server (36) + web (6)
+cd mission-control && npm test        # server (38) + web (26)
 cd demo-target && pip install -r requirements.txt && python -m pytest   # fixture (13)
 ```
 
@@ -214,6 +225,16 @@ Representative merged PRs (full review trails preserved):
 - [#5 Agent skills](https://github.com/oussamaelfig/UpgradePilot/pull/5) — baseline-pass
   short-circuit bypassing the legacy scan; requested-target-version handling; dict-style response
   access added to the scan; a schema-drift contract test added on request.
+- [#7 Agent hardening](https://github.com/oussamaelfig/UpgradePilot/pull/7) — 7 findings from the
+  first full end-to-end mission, all applied with regression tests across two review cycles.
+- [#8 UI redesign](https://github.com/oussamaelfig/UpgradePilot/pull/8) — 18 findings across the
+  landing page and Mission Control restyle, including a focus leak Qodo caught inside one of its
+  own suggested fixes.
+- [#9 Transport contract](https://github.com/oussamaelfig/UpgradePilot/pull/9) — GET/DELETE on
+  `/mcp` now answer 405 per the stateless streamable-HTTP convention.
+- [#10 Daytona console restyle](https://github.com/oussamaelfig/UpgradePilot/pull/10) — 12
+  findings, including empty-state evidence chips that fabricated data, caught before any demo;
+  reviewed on its own stacked PR, merged to main via #8.
 
 Each PR ends with a **Qodo engagement log** table classifying every finding
 (APPLIED / DECLINED WITH REASONING / FOLLOW-UP / STALE) with commits and regression tests.

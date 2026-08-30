@@ -28,7 +28,7 @@ From there:
 2. **Locate** — a parallel Repo Investigator subagent maps those changes to actual call sites.
 3. **Reproduce** — in a Daytona sandbox: install the new SDK against the unmodified code and watch the suite burn. **9 failed, 1 error** — `APIRemovedInV1` at every call site.
 4. **Migrate** — the smallest correct change set (seven files on briefbot).
-5. **Verify** — full suite re-run (**13/13 passed**) plus a deterministic scan for leftover legacy patterns (**0 matches**). Exit codes, not model claims.
+5. **Verify** — full suite re-run (**13/13 passed**) plus a deterministic scan for leftover legacy patterns (**0 matches**). Exit codes, not model claims — the raw command output is quoted in the [produced PR's body](https://github.com/oussamaelfig/briefbot/pull/2).
 6. **Ask** — stop. Show a human the exact GitHub action and the before/after evidence. Wait.
 7. **Act** — only after approval: branch, commit, real pull request through the GitHub MCP.
 
@@ -97,7 +97,7 @@ Every one of these was a real failure observed in live runs or event logs, and e
 
 - **Ten PRs** ([#1–#10](https://github.com/oussamaelfig/UpgradePilot/pulls?q=is%3Apr)): seven merged, three open at time of writing (docs and two UI restyles). Every PR carries a **Qodo engagement log** classifying each finding — applied, declined with reasoning, or verified stale — with commits and regression tests.
 - **About fifty findings** evaluated on the record across those logs; most applied with regression tests, a handful declined with evidence.
-- **Test growth as a side effect of review:** mission-control server suite 21 → 38 (PR #3's two review rounds alone took it 21 → 30); web suite 6 → 17 → 19 across the UI PRs; the demo fixture holds 13.
+- **Test growth as a side effect of review:** mission-control server suite 21 → 38 (PR #3's two review rounds alone took it 21 → 30); web suite 6 → 26 across the UI and hardening PRs; the demo fixture holds 13. (Executed at merge time: server 38 passed, web 26 passed.)
 - **The artifact:** [briefbot PR #2](https://github.com/oussamaelfig/briefbot/pull/2), opened autonomously after human approval — and since merged. Its body quotes the executed evidence: baseline exit 1 (9 failed, 1 error, 1 passed on `openai==3.6.0`), post-migration exit 0 (13 passed), legacy-pattern scan 0 matches, all inside a credential-free sandbox.
 
 ![The real pull request on GitHub: merged, with the evidence in the body and Qodo as reviewer](./blog-assets/briefbot-pr.png)
